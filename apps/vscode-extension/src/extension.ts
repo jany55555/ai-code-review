@@ -31,7 +31,8 @@ interface ReviewRun {
 type TreeNode =
   | { type: 'action'; label: string; command: string; arguments?: unknown[] }
   | { type: 'summary'; label: string; description: string; tooltip?: string }
-  | { type: 'issue'; issue: ReviewIssue };
+  | { type: 'issue'; issue: ReviewIssue }
+  | { type: 'report'; label: string; command: string };
 
 const diagnostics = vscode.languages.createDiagnosticCollection('ai-code-review');
 const issues = new Map<string, ReviewIssue>();
@@ -46,7 +47,7 @@ const toSeverity = (severity: ReviewIssue['severity']): vscode.DiagnosticSeverit
 };
 
 const getApiUrl = (): string => {
-  return vscode.workspace.getConfiguration('aiCodeReview').get<string>('apiUrl') ?? 'http://localhost:8787';
+  return vscode.workspace.getConfiguration('aiCodeReview').get<string>('apiUrl') ?? 'http://localhost:9999';
 };
 
 const getRepoName = (): string => {
@@ -150,6 +151,44 @@ async function openIssue(issue: ReviewIssue) {
   editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
 }
 
+async function showReviewReport() {
+  if (!currentReview) {
+    await vscode.window.showInformationMessage('暂无可查看的审查报告。');
+    return;
+  }
+
+  const lines = [
+    `# 审查报告`,
+    `- 仓库: ${currentReview.repository}`,
+    `- 提交: ${currentReview.sha}`,
+    `- 状态: ${currentReview.status}`,
+    `- 触发方式: ${currentReview.trigger ?? 'manual'}`,
+    `- 问题数: ${currentReview.issues.length}`,
+    '',
+    `## 摘要`,
+    String(currentReview.summary),
+    '',
+    `## 问题列表`,
+  ];
+
+  if (currentReview.issues.length === 0) {
+    lines.push('- 未发现问题。');
+  } else {
+    currentReview.issues.forEach((issue, idx) => {
+      lines.push(`${idx + 1}. [${issue.severity}] ${issue.title}`);
+      lines.push(`   - 文件: ${issue.filePath}:${issue.line}`);
+      lines.push(`   - 证据: ${issue.evidence}`);
+      lines.push(`   - 建议: ${issue.suggestion}`);
+    });
+  }
+
+  const doc = await vscode.workspace.openTextDocument({
+    language: 'markdown',
+    content: lines.join('\n'),
+  });
+  await vscode.window.showTextDocument(doc, { preview: false });
+}
+
 async function applyIssueFix(issue: ReviewIssue) {
   if (!issue.fixPatch) {
     await vscode.window.showInformationMessage('当前问题没有可应用的修复补丁。');
@@ -206,6 +245,12 @@ export function activate(context: vscode.ExtensionContext) {
     }),
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand('aiCodeReview.showReport', async () => {
+      await showReviewReport();
+    }),
+  );
+
   context.subscriptions.push(vscode.window.registerTreeDataProvider('aiCodeReview.issues', new IssueProvider()));
 
   void loadReview().catch(() => undefined);
@@ -230,6 +275,12 @@ class IssueProvider implements vscode.TreeDataProvider<TreeNode> {
       return item;
     }
 
+    if (element.type === 'report') {
+      const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
+      item.command = { command: element.command, title: element.label };
+      return item;
+    }
+
     const issue = element.issue;
     const item = new vscode.TreeItem(issue.title, vscode.TreeItemCollapsibleState.None);
     item.description = `${issue.filePath}:${issue.line}`;
@@ -249,6 +300,7 @@ class IssueProvider implements vscode.TreeDataProvider<TreeNode> {
     const review = currentReview;
     const nodes: TreeNode[] = [
       { type: 'action', label: '刷新审查结果', command: 'aiCodeReview.refresh' },
+      { type: 'report', label: '查看审查报告', command: 'aiCodeReview.showReport' },
     ];
 
     if (!review) {
