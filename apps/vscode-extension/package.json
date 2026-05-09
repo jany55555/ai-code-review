@@ -12,22 +12,27 @@
     "onView:aiCodeReview.issues",
     "onCommand:aiCodeReview.refresh",
     "onCommand:aiCodeReview.applyFix",
-    "onCommand:aiCodeReview.openIssue"
+    "onCommand:aiCodeReview.openIssue",
+    "onCommand:aiCodeReview.showReport"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "aiCodeReview.refresh",
-        "title": "AI Code Review: Refresh"
+        "title": "AI 代码审查: 刷新"
       },
       {
         "command": "aiCodeReview.applyFix",
-        "title": "AI Code Review: Apply Fix"
+        "title": "AI 代码审查: 修复"
       },
       {
         "command": "aiCodeReview.openIssue",
-        "title": "AI Code Review: Open Issue"
+        "title": "AI 代码审查: 打开问题"
+      },
+      {
+        "command": "aiCodeReview.showReport",
+        "title": "AI 代码审查: 查看报告"
       }
     ],
     "viewsContainers": {
@@ -43,7 +48,33 @@
       "aiCodeReview": [
         {
           "id": "aiCodeReview.issues",
-          "name": "Issues"
+          "name": "问题列表"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "aiCodeReview.openIssue",
+          "when": "view == aiCodeReview.issues && viewItem == ai-code-review-issue",
+          "group": "inline"
+        },
+        {
+          "command": "aiCodeReview.applyFix",
+          "when": "view == aiCodeReview.issues && viewItem == ai-code-review-issue",
+          "group": "inline@1"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "aiCodeReview.refresh",
+          "when": "view == aiCodeReview.issues",
+          "group": "navigation@1"
+        },
+        {
+          "command": "aiCodeReview.showReport",
+          "when": "view == aiCodeReview.issues",
+          "group": "navigation@2"
         }
       ]
     },
