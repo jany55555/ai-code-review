@@ -41,5 +41,7 @@ export const runReview = async (
     summary,
     issues,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: issues.length === 0 ? '通过' : '有问题',
   };
 };

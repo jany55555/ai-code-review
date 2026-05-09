@@ -12,6 +12,8 @@ export interface ReviewIssue {
   confidence: number;
 }
 
+export type ReviewStatus = '排队中' | '审查中' | '通过' | '有问题' | '失败';
+
 export interface ReviewRun {
   id: string;
   repository: string;
@@ -20,5 +22,8 @@ export interface ReviewRun {
   summary: string;
   issues: ReviewIssue[];
   createdAt: string;
+  updatedAt: string;
+  status: ReviewStatus;
   trigger?: 'manual' | 'post-commit' | 'ci';
+  errorMessage?: string;
 }

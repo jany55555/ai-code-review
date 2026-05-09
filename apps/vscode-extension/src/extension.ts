@@ -12,6 +12,8 @@ interface ReviewIssue {
   fixPatch?: string;
 }
 
+type ReviewStatus = '排队中' | '审查中' | '通过' | '有问题' | '失败';
+
 interface ReviewRun {
   id: string;
   repository: string;
@@ -20,7 +22,10 @@ interface ReviewRun {
   summary: string;
   issues: ReviewIssue[];
   createdAt: string;
+  updatedAt: string;
+  status: ReviewStatus;
   trigger?: 'manual' | 'post-commit' | 'ci';
+  errorMessage?: string;
 }
 
 type TreeNode =
@@ -32,7 +37,7 @@ const diagnostics = vscode.languages.createDiagnosticCollection('ai-code-review'
 const issues = new Map<string, ReviewIssue>();
 const treeChange = new vscode.EventEmitter<void>();
 let currentReview: ReviewRun | null = null;
-let pollTimer: ReturnType<typeof setInterval> | undefined;
+let sseAbortController: AbortController | undefined;
 
 const toSeverity = (severity: ReviewIssue['severity']): vscode.DiagnosticSeverity => {
   if (severity === 'error') return vscode.DiagnosticSeverity.Error;
@@ -75,6 +80,16 @@ const refreshView = () => {
   treeChange.fire();
 };
 
+const applyReview = (review: ReviewRun) => {
+  currentReview = review;
+  issues.clear();
+  for (const issue of review.issues) {
+    issues.set(issue.id, issue);
+  }
+  refreshDiagnostics(review.issues);
+  refreshView();
+};
+
 async function loadReview() {
   const apiUrl = getApiUrl();
   const repo = getRepoName();
@@ -85,14 +100,44 @@ async function loadReview() {
   }
 
   const review = (await response.json()) as ReviewRun;
-  currentReview = review;
-  issues.clear();
-  for (const issue of review.issues) {
-    issues.set(issue.id, issue);
-  }
-  refreshDiagnostics(review.issues);
-  refreshView();
+  applyReview(review);
   return review;
+}
+
+async function connectSse() {
+  sseAbortController?.abort();
+  sseAbortController = new AbortController();
+
+  const apiUrl = getApiUrl();
+  const repo = getRepoName();
+  const response = await fetch(`${apiUrl}/review/stream/${encodeURIComponent(repo)}`, { signal: sseAbortController.signal });
+  if (!response.ok || !response.body) {
+    throw new Error(`SSE 连接失败: ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+
+  while (!sseAbortController.signal.aborted) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let boundaryIndex = buffer.indexOf('\n\n');
+    while (boundaryIndex !== -1) {
+      const chunk = buffer.slice(0, boundaryIndex).trim();
+      buffer = buffer.slice(boundaryIndex + 2);
+      boundaryIndex = buffer.indexOf('\n\n');
+
+      const dataLine = chunk.split('\n').find((line) => line.startsWith('data: '));
+      if (!dataLine) continue;
+      const payload = JSON.parse(dataLine.slice(6)) as { type: string; review?: ReviewRun };
+      if (payload.type === 'review.status' || payload.type === 'review.completed') {
+        if (payload.review) applyReview(payload.review);
+      }
+    }
+  }
 }
 
 async function openIssue(issue: ReviewIssue) {
@@ -164,10 +209,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.window.registerTreeDataProvider('aiCodeReview.issues', new IssueProvider()));
 
   void loadReview().catch(() => undefined);
-  pollTimer = setInterval(() => {
-    void loadReview().catch(() => undefined);
-  }, 2000);
-  context.subscriptions.push(new vscode.Disposable(() => clearInterval(pollTimer)));
+  void connectSse().catch(() => undefined);
+  context.subscriptions.push(new vscode.Disposable(() => sseAbortController?.abort()));
 }
 
 class IssueProvider implements vscode.TreeDataProvider<TreeNode> {
@@ -219,15 +262,24 @@ class IssueProvider implements vscode.TreeDataProvider<TreeNode> {
 
     nodes.push({
       type: 'summary',
-      label: `PR #${review.pullRequestNumber}`,
+      label: `状态：${review.status}`,
       description: `${review.issues.length} 个问题`,
-      tooltip: review.summary,
+      tooltip: `${review.summary}${review.errorMessage ? `\n${review.errorMessage}` : ''}`,
     });
+
+    if (review.status === '排队中' || review.status === '审查中') {
+      nodes.push({
+        type: 'summary',
+        label: review.status,
+        description: '等待审查结果推送...',
+      });
+      return nodes;
+    }
 
     if (review.issues.length === 0) {
       nodes.push({
         type: 'summary',
-        label: '检查通过',
+        label: review.status,
         description: '未发现问题。',
       });
       return nodes;
@@ -238,7 +290,7 @@ class IssueProvider implements vscode.TreeDataProvider<TreeNode> {
 }
 
 export function deactivate() {
-  if (pollTimer) clearInterval(pollTimer);
+  sseAbortController?.abort();
   diagnostics.dispose();
   treeChange.dispose();
 }
