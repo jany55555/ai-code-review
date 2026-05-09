@@ -51,7 +51,9 @@ const getApiUrl = (): string => {
 };
 
 const getRepoName = (): string => {
-  const firstFolder = vscode.workspace.workspaceFolders?.at(0);
+  const firstFolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
+    ? vscode.workspace.workspaceFolders[0]
+    : undefined;
   const folder = firstFolder?.uri.fsPath;
   if (!folder) return 'demo-repo';
 
