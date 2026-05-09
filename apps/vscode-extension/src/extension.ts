@@ -47,7 +47,7 @@ const toSeverity = (severity: ReviewIssue['severity']): vscode.DiagnosticSeverit
 };
 
 const getApiUrl = (): string => {
-  return vscode.workspace.getConfiguration('aiCodeReview').get<string>('apiUrl') ?? 'http://localhost:9999';
+  return vscode.workspace.getConfiguration('aiCodeReview').get<string>('apiUrl') ?? 'http://localhost:8787';
 };
 
 const getRepoName = (): string => {
