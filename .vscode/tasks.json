@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-ai-code-review-extension",
+      "type": "shell",
+      "command": "pnpm --filter ai-code-review-vscode build",
+      "problemMatcher": []
+    }
+  ]
+}

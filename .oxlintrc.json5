@@ -1,0 +1,8 @@
+{
+  rules: {
+    correctness: true,
+    suspicious: true,
+    perf: true,
+    style: true,
+  },
+}

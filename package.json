@@ -1,0 +1,21 @@
+{
+  "name": "ai-code-review",
+  "private": true,
+  "packageManager": "pnpm@10.14.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel dev",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "oxlint": "^1.28.0",
+    "oxlint-tsgolint": "^0.1.1",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,17 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger review API
+        env:
+          REVIEW_API_URL: ${{ secrets.REVIEW_API_URL }}
+        run: |
+          curl -sS -X POST "$REVIEW_API_URL/review/run" \
+            -H "Content-Type: application/json" \
+            -d '{"repo":"'"${{ github.repository }}"'","pr":'"${{ github.event.pull_request.number }}"',"sha":"'"${{ github.event.pull_request.head.sha }}"'","diff":"placeholder"}'

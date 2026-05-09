@@ -1,0 +1,72 @@
+{
+  "name": "ai-code-review-vscode",
+  "displayName": "AI Code Review",
+  "description": "Show AI review findings and apply fixes.",
+  "version": "0.0.1",
+  "publisher": "ai-code-review",
+  "engines": {
+    "vscode": "^1.92.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onView:aiCodeReview.issues",
+    "onCommand:aiCodeReview.refresh",
+    "onCommand:aiCodeReview.applyFix",
+    "onCommand:aiCodeReview.openIssue"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "aiCodeReview.refresh",
+        "title": "AI Code Review: Refresh"
+      },
+      {
+        "command": "aiCodeReview.applyFix",
+        "title": "AI Code Review: Apply Fix"
+      },
+      {
+        "command": "aiCodeReview.openIssue",
+        "title": "AI Code Review: Open Issue"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aiCodeReview",
+          "title": "AI Code Review",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "aiCodeReview": [
+        {
+          "id": "aiCodeReview.issues",
+          "name": "Issues"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AI Code Review",
+      "properties": {
+        "aiCodeReview.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:8787",
+          "description": "Backend API URL"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "oxlint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@types/vscode": "^1.92.0",
+    "typescript": "^5.9.2"
+  }
+}

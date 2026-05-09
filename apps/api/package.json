@@ -1,0 +1,28 @@
+{
+  "name": "@ai-code-review/api",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "lint": "oxlint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@ai-code-review/contracts": "workspace:*",
+    "@ai-code-review/llm-client": "workspace:*",
+    "@ai-code-review/review-engine": "workspace:*",
+    "@ai-code-review/storage": "workspace:*",
+    "fastify": "^5.6.1",
+    "zod": "^4.1.5",
+    "@types/node": "^24.3.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}
