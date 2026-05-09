@@ -166,7 +166,7 @@ export function activate(context: vscode.ExtensionContext) {
   void loadReview().catch(() => undefined);
   pollTimer = setInterval(() => {
     void loadReview().catch(() => undefined);
-  }, 5000);
+  }, 2000);
   context.subscriptions.push(new vscode.Disposable(() => clearInterval(pollTimer)));
 }
 

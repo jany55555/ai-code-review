@@ -19,14 +19,42 @@ app.post('/review/run', async (request, reply) => {
     trigger?: 'manual' | 'post-commit' | 'ci';
   };
 
-  const review = await runReview(
-    buildPullRequestContext(body.repo, body.pr, body.sha, body.diff),
-    reviewClient,
-  );
+  try {
+    const review = await runReview(
+      buildPullRequestContext(body.repo, body.pr, body.sha, body.diff),
+      reviewClient,
+    );
 
-  review.trigger = body.trigger ?? 'manual';
-  store.saveReview(review);
-  return reply.send(review);
+    review.trigger = body.trigger ?? 'manual';
+    store.saveReview(review);
+    return reply.send(review);
+  } catch (error) {
+    const fallback = {
+      id: `review_${Date.now()}`,
+      repository: body.repo,
+      pullRequestNumber: body.pr,
+      sha: body.sha,
+      summary: '审查服务暂时不可用，请稍后重试。',
+      issues: [
+        {
+          id: 'review-unavailable',
+          filePath: 'N/A',
+          line: 1,
+          severity: 'warning' as const,
+          title: 'AI 审查网关超时',
+          evidence: String(error),
+          suggestion: '当前提交已完成，但自动审查失败。可稍后点击“刷新审查结果”重试。',
+          confidence: 1,
+        },
+      ],
+      createdAt: new Date().toISOString(),
+      trigger: body.trigger ?? 'manual',
+    };
+
+    store.saveReview(fallback);
+    request.log.error(error);
+    return reply.code(200).send(fallback);
+  }
 });
 
 app.get('/review/latest/:repo', async (request, reply) => {
