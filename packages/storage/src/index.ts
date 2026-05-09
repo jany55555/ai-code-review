@@ -19,8 +19,8 @@ export class InMemoryStore {
   }
 
   getLatestReviewByRepo(repo: string): ReviewRun | undefined {
-    const id = this.latestByRepo.get(repo)!;
-    return this.reviews.get(id);
+    const id = this.latestByRepo.get(repo);
+    return id ? this.reviews.get(id) : undefined;
   }
 
   saveFeedback(item: ReviewFeedback): void {

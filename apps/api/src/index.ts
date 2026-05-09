@@ -8,6 +8,8 @@ const app = Fastify({ logger: true });
 const store = new InMemoryStore();
 const reviewClient = new ClaudeReviewClient();
 
+const buildCommitMarker = (repo?: string): string => `${repo!.trim()}::marker`;
+
 app.get('/health', async () => ({ ok: true }));
 
 app.post('/review/run', async (request, reply) => {
