@@ -75,16 +75,13 @@ async function loadReview() {
   }
 
   const review = (await response.json()) as ReviewRun;
-  const isNewReview = currentReview?.id !== review.id;
   currentReview = review;
   issues.clear();
   for (const issue of review.issues) {
     issues.set(issue.id, issue);
   }
-  if (isNewReview) {
-    refreshDiagnostics(review.issues);
-    refreshView();
-  }
+  refreshDiagnostics(review.issues);
+  refreshView();
   return review;
 }
 
@@ -100,7 +97,7 @@ async function openIssue(issue: ReviewIssue) {
 
 async function applyIssueFix(issue: ReviewIssue) {
   if (!issue.fixPatch) {
-    await vscode.window.showInformationMessage('No fix patch available.');
+    await vscode.window.showInformationMessage('当前问题没有可应用的修复补丁。');
     return;
   }
 
@@ -119,8 +116,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('aiCodeReview.refresh', async () => {
-      const output = vscode.window.createOutputChannel('AI Code Review');
-      output.appendLine('Refreshing review findings...');
+      const output = vscode.window.createOutputChannel('AI 代码审查');
+      output.appendLine('正在刷新审查结果...');
       output.show(true);
 
       try {
@@ -135,7 +132,7 @@ export function activate(context: vscode.ExtensionContext) {
         refreshDiagnostics([]);
         refreshView();
         output.appendLine(String(error));
-        output.appendLine('No saved review found yet. Run the API review endpoint first.');
+        output.appendLine('暂未找到审查记录，请先触发一次 /review/run。');
       }
     }),
   );
@@ -198,14 +195,14 @@ class IssueProvider implements vscode.TreeDataProvider<TreeNode> {
 
     const review = currentReview;
     const nodes: TreeNode[] = [
-      { type: 'action', label: 'Refresh Review', command: 'aiCodeReview.refresh' },
+      { type: 'action', label: '刷新审查结果', command: 'aiCodeReview.refresh' },
     ];
 
     if (!review) {
       nodes.push({
         type: 'summary',
-        label: 'No review loaded',
-        description: 'Run Refresh after the API has a saved review.',
+        label: '暂无审查结果',
+        description: '后端产生审查记录后会自动显示，也可手动刷新。',
       });
       return nodes;
     }
@@ -213,15 +210,15 @@ class IssueProvider implements vscode.TreeDataProvider<TreeNode> {
     nodes.push({
       type: 'summary',
       label: `PR #${review.pullRequestNumber}`,
-      description: `${review.issues.length} issue(s)`,
+      description: `${review.issues.length} 个问题`,
       tooltip: review.summary,
     });
 
     if (review.issues.length === 0) {
       nodes.push({
         type: 'summary',
-        label: 'Clean run',
-        description: 'No issues were reported.',
+        label: '检查通过',
+        description: '未发现问题。',
       });
       return nodes;
     }

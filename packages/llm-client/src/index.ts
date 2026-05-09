@@ -5,6 +5,7 @@ const promptFor = (context: PullRequestContext): string => {
   return [
     'You are an expert code reviewer.',
     'Return strict JSON only with fields summary and issues.',
+    'Write summary/title/evidence/suggestion in Simplified Chinese.',
     'Each issue requires: id, filePath, line, severity(info|warning|error), title, evidence, suggestion, confidence(0-1), fixPatch(optional).',
     'Focus on correctness, null safety, security risks, and missing tests.',
     `Repository: ${context.repository}`,

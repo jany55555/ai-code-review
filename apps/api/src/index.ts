@@ -29,18 +29,18 @@ app.post('/review/run', async (request, reply) => {
   return reply.send(review);
 });
 
-app.get('/review/:repo/:pr', async (request, reply) => {
-  const { repo, pr } = request.params as { repo: string; pr: string };
-  const review = store.getReviewByPR(repo, Number(pr));
+app.get('/review/latest/:repo', async (request, reply) => {
+  const { repo } = request.params as { repo: string };
+  const review = store.getLatestReviewByRepo(repo);
   if (!review) {
     return reply.code(404).send({ message: 'Review not found' });
   }
   return review;
 });
 
-app.get('/review/latest/:repo', async (request, reply) => {
-  const { repo } = request.params as { repo: string };
-  const review = store.getLatestReviewByRepo(repo);
+app.get('/review/:repo/:pr', async (request, reply) => {
+  const { repo, pr } = request.params as { repo: string; pr: string };
+  const review = store.getReviewByPR(repo, Number(pr));
   if (!review) {
     return reply.code(404).send({ message: 'Review not found' });
   }
