@@ -51,15 +51,16 @@ const getApiUrl = (): string => {
 };
 
 const getRepoName = (): string => {
-  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const firstFolder = vscode.workspace.workspaceFolders?.at(0);
+  const folder = firstFolder?.uri.fsPath;
   if (!folder) return 'demo-repo';
 
   try {
     const remote = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: folder, encoding: 'utf8' }).trim();
     const normalized = remote.replace(/\.git$/, '');
-    return normalized.split('/').pop() ?? vscode.workspace.workspaceFolders?.[0]?.name ?? 'demo-repo';
+    return normalized.split('/').pop() ?? firstFolder?.name ?? 'demo-repo';
   } catch {
-    return vscode.workspace.workspaceFolders?.[0]?.name ?? 'demo-repo';
+    return firstFolder?.name ?? 'demo-repo';
   }
 };
 
