@@ -19,6 +19,7 @@ interface ReviewRun {
   summary: string;
   issues: ReviewIssue[];
   createdAt: string;
+  trigger?: 'manual' | 'post-commit' | 'ci';
 }
 
 type TreeNode =
@@ -30,6 +31,7 @@ const diagnostics = vscode.languages.createDiagnosticCollection('ai-code-review'
 const issues = new Map<string, ReviewIssue>();
 const treeChange = new vscode.EventEmitter<void>();
 let currentReview: ReviewRun | null = null;
+let pollTimer: ReturnType<typeof setInterval> | undefined;
 
 const toSeverity = (severity: ReviewIssue['severity']): vscode.DiagnosticSeverity => {
   if (severity === 'error') return vscode.DiagnosticSeverity.Error;
@@ -66,20 +68,23 @@ const refreshView = () => {
 async function loadReview() {
   const apiUrl = getApiUrl();
   const repo = getRepoName();
-  const response = await fetch(`${apiUrl}/review/${encodeURIComponent(repo)}/1`);
+  const response = await fetch(`${apiUrl}/review/latest/${encodeURIComponent(repo)}`);
 
   if (!response.ok) {
     throw new Error(`Failed to load review: ${response.status}`);
   }
 
   const review = (await response.json()) as ReviewRun;
+  const isNewReview = currentReview?.id !== review.id;
   currentReview = review;
   issues.clear();
   for (const issue of review.issues) {
     issues.set(issue.id, issue);
   }
-  refreshDiagnostics(review.issues);
-  refreshView();
+  if (isNewReview) {
+    refreshDiagnostics(review.issues);
+    refreshView();
+  }
   return review;
 }
 
@@ -150,6 +155,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(vscode.window.registerTreeDataProvider('aiCodeReview.issues', new IssueProvider()));
+
+  void loadReview().catch(() => undefined);
+  pollTimer = setInterval(() => {
+    void loadReview().catch(() => undefined);
+  }, 5000);
+  context.subscriptions.push(new vscode.Disposable(() => clearInterval(pollTimer)));
 }
 
 class IssueProvider implements vscode.TreeDataProvider<TreeNode> {
@@ -220,6 +231,7 @@ class IssueProvider implements vscode.TreeDataProvider<TreeNode> {
 }
 
 export function deactivate() {
+  if (pollTimer) clearInterval(pollTimer);
   diagnostics.dispose();
   treeChange.dispose();
 }

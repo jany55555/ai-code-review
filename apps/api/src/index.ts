@@ -16,6 +16,7 @@ app.post('/review/run', async (request, reply) => {
     pr: number;
     sha: string;
     diff: string;
+    trigger?: 'manual' | 'post-commit' | 'ci';
   };
 
   const review = await runReview(
@@ -23,6 +24,7 @@ app.post('/review/run', async (request, reply) => {
     reviewClient,
   );
 
+  review.trigger = body.trigger ?? 'manual';
   store.saveReview(review);
   return reply.send(review);
 });
@@ -30,6 +32,15 @@ app.post('/review/run', async (request, reply) => {
 app.get('/review/:repo/:pr', async (request, reply) => {
   const { repo, pr } = request.params as { repo: string; pr: string };
   const review = store.getReviewByPR(repo, Number(pr));
+  if (!review) {
+    return reply.code(404).send({ message: 'Review not found' });
+  }
+  return review;
+});
+
+app.get('/review/latest/:repo', async (request, reply) => {
+  const { repo } = request.params as { repo: string };
+  const review = store.getLatestReviewByRepo(repo);
   if (!review) {
     return reply.code(404).send({ message: 'Review not found' });
   }

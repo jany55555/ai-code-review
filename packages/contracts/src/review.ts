@@ -20,4 +20,5 @@ export interface ReviewRun {
   summary: string;
   issues: ReviewIssue[];
   createdAt: string;
+  trigger?: 'manual' | 'post-commit' | 'ci';
 }
