@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { execFileSync } from 'node:child_process';
 
 interface ReviewIssue {
   id: string;
@@ -44,7 +45,16 @@ const getApiUrl = (): string => {
 };
 
 const getRepoName = (): string => {
-  return vscode.workspace.workspaceFolders?.[0]?.name ?? 'demo-repo';
+  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!folder) return 'demo-repo';
+
+  try {
+    const remote = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: folder, encoding: 'utf8' }).trim();
+    const normalized = remote.replace(/\.git$/, '');
+    return normalized.split('/').pop() ?? vscode.workspace.workspaceFolders?.[0]?.name ?? 'demo-repo';
+  } catch {
+    return vscode.workspace.workspaceFolders?.[0]?.name ?? 'demo-repo';
+  }
 };
 
 const refreshDiagnostics = (issueList: ReviewIssue[]) => {

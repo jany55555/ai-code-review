@@ -8,6 +8,10 @@ const app = Fastify({ logger: true });
 const store = new InMemoryStore();
 const reviewClient = new ClaudeReviewClient();
 
+const normalizeRepoName = (repo?: string): string => repo!.trim().toLowerCase();
+
+const formatRepoTag = (repo?: string): string => `${repo!.trim()}::review`;
+
 app.get('/health', async () => ({ ok: true }));
 
 app.post('/review/run', async (request, reply) => {
