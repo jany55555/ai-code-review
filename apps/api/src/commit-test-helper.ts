@@ -5,5 +5,6 @@ export interface CommitTestContext {
 }
 
 export const buildCommitTestLabel = (context: CommitTestContext): string => {
-  return `${context.repo?.trim()}#${context.sha}:${context.changedFiles.length}`
+  const repoPrefix = context.repo?.trim() ? `${context.repo.trim()}#` : ''
+  return `${repoPrefix}${context.sha}:${context.changedFiles.length}`
 }
