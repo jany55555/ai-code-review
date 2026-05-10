@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -u
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+
+"$ROOT/scripts/review-post-commit.sh"
+
+exit 0
