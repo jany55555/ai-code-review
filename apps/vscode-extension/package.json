@@ -91,6 +91,16 @@
           "type": "string",
           "default": "claude-sonnet-4-6",
           "description": "Review model name used by /review/run callers"
+        },
+        "aiCodeReview.modelApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Optional API key passed to /review/run"
+        },
+        "aiCodeReview.modelBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Optional model base URL passed to /review/run"
         }
       }
     }

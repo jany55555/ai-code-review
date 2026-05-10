@@ -9,6 +9,8 @@ set -u
   API_URL=${AI_CODE_REVIEW_API_URL:-http://localhost:8787}
   PROVIDER=${AI_CODE_REVIEW_PROVIDER:-claude}
   MODEL=${AI_CODE_REVIEW_MODEL:-claude-sonnet-4-6}
+  API_KEY=${AI_CODE_REVIEW_API_KEY:-}
+  BASE_URL=${AI_CODE_REVIEW_BASE_URL:-}
 
   DIFF=$(git show --format= --unified=0 "$SHA" 2>/dev/null) || exit 0
 
@@ -16,7 +18,7 @@ set -u
     exit 0
   fi
 
-  export REPO SHA DIFF PROVIDER MODEL
+  export REPO SHA DIFF PROVIDER MODEL API_KEY BASE_URL
 
   python3 - <<'PY' | curl --silent --show-error --fail --max-time 8 \
     -X POST "$API_URL/review/run" \
@@ -34,6 +36,10 @@ payload = {
     "provider": os.environ["PROVIDER"],
     "model": os.environ["MODEL"],
 }
+if os.environ.get("API_KEY"):
+    payload["apiKey"] = os.environ["API_KEY"]
+if os.environ.get("BASE_URL"):
+    payload["baseUrl"] = os.environ["BASE_URL"]
 print(json.dumps(payload, ensure_ascii=False))
 PY
 ) &

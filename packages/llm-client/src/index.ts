@@ -47,23 +47,28 @@ const normalizeProvider = (provider?: ReviewProvider): ReviewProvider => {
 };
 
 export class MultiProviderReviewClient {
-  private _anthropic?: Anthropic;
-  private _openai?: OpenAI;
-  private _gemini?: GoogleGenAI;
-
-  private get anthropic(): Anthropic {
-    if (!this._anthropic) this._anthropic = new Anthropic();
-    return this._anthropic;
+  private createAnthropicClient(context: PullRequestContext): Anthropic {
+    return new Anthropic({
+      apiKey: context.apiKey ?? process.env.ANTHROPIC_API_KEY,
+      baseURL: context.baseUrl || process.env.ANTHROPIC_BASE_URL,
+    });
   }
 
-  private get openai(): OpenAI {
-    if (!this._openai) this._openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    return this._openai;
+  private createOpenAIClient(context: PullRequestContext): OpenAI {
+    return new OpenAI({
+      apiKey: context.apiKey ?? process.env.OPENAI_API_KEY,
+      baseURL: context.baseUrl || process.env.OPENAI_BASE_URL,
+    });
   }
 
-  private get gemini(): GoogleGenAI {
-    if (!this._gemini) this._gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    return this._gemini;
+  private createGeminiClient(context: PullRequestContext): GoogleGenAI {
+    if (context.baseUrl) {
+      throw new Error('Gemini provider does not support custom baseUrl in current SDK.');
+    }
+
+    return new GoogleGenAI({
+      apiKey: context.apiKey ?? process.env.GEMINI_API_KEY,
+    });
   }
 
   async reviewDiff(
@@ -87,7 +92,7 @@ export class MultiProviderReviewClient {
   private async reviewWithClaude(
     context: PullRequestContext,
   ): Promise<{ summary: string; issues: ReviewIssue[] }> {
-    const response = await this.anthropic.messages.create({
+    const response = await this.createAnthropicClient(context).messages.create({
       model: context.model ?? 'claude-sonnet-4-6',
       max_tokens: 16000,
       messages: [{ role: 'user', content: promptFor(context) }],
@@ -104,7 +109,7 @@ export class MultiProviderReviewClient {
   private async reviewWithOpenAI(
     context: PullRequestContext,
   ): Promise<{ summary: string; issues: ReviewIssue[] }> {
-    const response = await this.openai.responses.create({
+    const response = await this.createOpenAIClient(context).responses.create({
       model: context.model ?? 'gpt-4o',
       input: promptFor(context),
     });
@@ -120,7 +125,7 @@ export class MultiProviderReviewClient {
   private async reviewWithGemini(
     context: PullRequestContext,
   ): Promise<{ summary: string; issues: ReviewIssue[] }> {
-    const response = await this.gemini.models.generateContent({
+    const response = await this.createGeminiClient(context).models.generateContent({
       model: context.model ?? 'gemini-1.5-pro',
       contents: promptFor(context),
     });

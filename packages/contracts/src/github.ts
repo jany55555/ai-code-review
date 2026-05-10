@@ -7,4 +7,6 @@ export interface PullRequestContext {
   diff: string;
   provider?: ReviewProvider;
   model?: string;
+  apiKey?: string;
+  baseUrl?: string;
 }

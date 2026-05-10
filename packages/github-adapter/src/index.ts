@@ -7,6 +7,8 @@ export interface PullRequestContext {
   diff: string;
   provider?: ReviewProvider;
   model?: string;
+  apiKey?: string;
+  baseUrl?: string;
 }
 
 export const buildPullRequestContext = (
@@ -16,6 +18,8 @@ export const buildPullRequestContext = (
   diff: string,
   provider?: ReviewProvider,
   model?: string,
+  apiKey?: string,
+  baseUrl?: string,
 ): PullRequestContext => ({
   repository: repo,
   pullRequestNumber: pr,
@@ -23,4 +27,6 @@ export const buildPullRequestContext = (
   diff,
   provider,
   model,
+  apiKey,
+  baseUrl,
 });

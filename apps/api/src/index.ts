@@ -40,6 +40,8 @@ app.post('/review/run', async (request, reply) => {
     trigger?: 'manual' | 'post-commit' | 'ci';
     provider?: ReviewProvider;
     model?: string;
+    apiKey?: string;
+    baseUrl?: string;
   };
 
   const draft: ReviewRun = {
@@ -72,6 +74,8 @@ app.post('/review/run', async (request, reply) => {
         body.diff,
         body.provider ?? 'claude',
         body.model ?? 'claude-sonnet-4-6',
+        body.apiKey,
+        body.baseUrl,
       ),
       reviewClient,
       ({ index, total, filePath }) => {

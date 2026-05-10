@@ -87,6 +87,22 @@ const getReviewModel = (): string => {
   )
 }
 
+const getModelApiKey = (): string | undefined => {
+  const value = vscode.workspace
+    .getConfiguration('aiCodeReview')
+    .get<string>('modelApiKey')
+    ?.trim()
+  return value ? value : undefined
+}
+
+const getModelBaseUrl = (): string | undefined => {
+  const value = vscode.workspace
+    .getConfiguration('aiCodeReview')
+    .get<string>('modelBaseUrl')
+    ?.trim()
+  return value ? value : undefined
+}
+
 const getFirstWorkspaceFolder = (): vscode.WorkspaceFolder | undefined => {
   return vscode.workspace.workspaceFolders &&
     vscode.workspace.workspaceFolders.length > 0
