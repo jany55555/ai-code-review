@@ -12,6 +12,10 @@ const severityLabel = {
 
 const app = document.getElementById('app')
 
+if (!app) {
+  console.error('[reviewView] Fatal: #app container not found in DOM. Webview will not render.')
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -86,6 +90,7 @@ function renderIssues(review) {
 }
 
 function render() {
+  if (!app) return
   app.innerHTML = `
     ${renderToolbar()}
     ${renderSummary(state.review)}
