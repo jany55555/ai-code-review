@@ -22,6 +22,12 @@ export function Summary({ review }: SummaryProps) {
     ['摘要', review.summary],
   ]
 
+  if (review.progress) {
+    rows.splice(4, 0, ['进度', `${review.progress.index}/${review.progress.total}`])
+    rows.splice(5, 0, ['当前文件', review.progress.filePath])
+    rows.splice(6, 0, ['阶段', review.progress.message])
+  }
+
   return (
     <section className={`${panelClass} text-xs leading-5`}>
       {rows.map(([label, value]) => (

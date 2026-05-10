@@ -74,9 +74,29 @@ app.post('/review/run', async (request, reply) => {
         body.model ?? 'claude-sonnet-4-6',
       ),
       reviewClient,
+      ({ index, total, filePath }) => {
+        const progress = { index, total, filePath, message: `正在分析第 ${index} 个文件...` };
+        const progressReview: ReviewRun = {
+          ...running,
+          updatedAt: new Date().toISOString(),
+          progress,
+        };
+        store.saveReview(progressReview);
+        broadcast(body.repo, {
+          type: 'review.progress',
+          progress,
+          review: progressReview,
+        });
+      },
     );
 
-    const saved = makeReview(body, { ...review, createdAt: draft.createdAt, updatedAt: new Date().toISOString(), status: '通过' });
+    const saved = makeReview(body, {
+      ...review,
+      createdAt: draft.createdAt,
+      updatedAt: new Date().toISOString(),
+      status: '通过',
+      progress: undefined,
+    });
     const finalReview: ReviewRun = { ...saved, status: toStatus(saved.issues.length > 0) };
     store.saveReview(finalReview);
     store.saveReviewEvent(finalReview.id, finalReview.status);
@@ -106,6 +126,7 @@ app.post('/review/run', async (request, reply) => {
       status: '失败',
       trigger: body.trigger ?? 'manual',
       errorMessage: String(error),
+      progress: undefined,
     };
 
     store.saveReview(fallback);

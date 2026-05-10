@@ -15,6 +15,13 @@ interface ReviewIssue {
 
 type ReviewStatus = '排队中' | '审查中' | '通过' | '有问题' | '失败'
 
+interface ReviewProgress {
+  index: number
+  total: number
+  filePath: string
+  message: string
+}
+
 interface ReviewRun {
   id: string
   repository: string
@@ -27,6 +34,7 @@ interface ReviewRun {
   status: ReviewStatus
   trigger?: 'manual' | 'post-commit' | 'ci'
   errorMessage?: string
+  progress?: ReviewProgress
 }
 
 interface ViewState {
@@ -196,6 +204,7 @@ async function connectSse() {
       }
       if (
         payload.type === 'review.status' ||
+        payload.type === 'review.progress' ||
         payload.type === 'review.completed'
       ) {
         if (payload.review) applyReview(payload.review)

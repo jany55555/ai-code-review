@@ -10,6 +10,13 @@ export interface ReviewIssue {
   suggestion: string
 }
 
+export interface ReviewProgress {
+  index: number
+  total: number
+  filePath: string
+  message: string
+}
+
 export interface ReviewData {
   status: string
   repository: string
@@ -18,6 +25,7 @@ export interface ReviewData {
   summary: string
   errorMessage?: string
   issues?: ReviewIssue[]
+  progress?: ReviewProgress
 }
 
 export type InitOrUpdateMessage = {

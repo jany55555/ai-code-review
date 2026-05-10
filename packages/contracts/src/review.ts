@@ -14,6 +14,13 @@ export interface ReviewIssue {
 
 export type ReviewStatus = '排队中' | '审查中' | '通过' | '有问题' | '失败';
 
+export interface ReviewProgress {
+  index: number;
+  total: number;
+  filePath: string;
+  message: string;
+}
+
 export interface ReviewRun {
   id: string;
   repository: string;
@@ -26,4 +33,5 @@ export interface ReviewRun {
   status: ReviewStatus;
   trigger?: 'manual' | 'post-commit' | 'ci';
   errorMessage?: string;
+  progress?: ReviewProgress;
 }

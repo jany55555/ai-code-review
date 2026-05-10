@@ -21921,6 +21921,11 @@
       ["\u89E6\u53D1", review.trigger ?? "manual"],
       ["\u6458\u8981", review.summary]
     ];
+    if (review.progress) {
+      rows.splice(4, 0, ["\u8FDB\u5EA6", `${review.progress.index}/${review.progress.total}`]);
+      rows.splice(5, 0, ["\u5F53\u524D\u6587\u4EF6", review.progress.filePath]);
+      rows.splice(6, 0, ["\u9636\u6BB5", review.progress.message]);
+    }
     return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("section", { className: `${panelClass} text-xs leading-5`, children: [
       rows.map(([label, value]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { children: label }),
