@@ -172,8 +172,10 @@ const normalizeIssue = (payload: unknown): ReviewIssue | null => {
 const resolveIssueFilePath = (filePath: string): string => {
   if (path.isAbsolute(filePath)) return filePath;
   const firstFolder = getFirstWorkspaceFolder();
-  if (!firstFolder) return filePath;
-  return path.join(firstFolder.uri.fsPath, filePath);
+  if (firstFolder) return path.join(firstFolder.uri.fsPath, filePath);
+  const fallback = path.join(process.cwd(), filePath);
+  output.appendLine(`[resolveIssueFilePath] fallback cwd=${process.cwd()} resolved=${fallback}`);
+  return fallback;
 };
 
 async function openIssue(issue: ReviewIssue) {
