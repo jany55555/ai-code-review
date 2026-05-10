@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { execFileSync } from 'node:child_process';
+import path from 'node:path';
 
 interface ReviewIssue {
   id: string;
@@ -51,10 +52,14 @@ const getApiUrl = (): string => {
   return vscode.workspace.getConfiguration('aiCodeReview').get<string>('apiUrl') ?? 'http://localhost:8787';
 };
 
-const getRepoName = (): string => {
-  const firstFolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
+const getFirstWorkspaceFolder = (): vscode.WorkspaceFolder | undefined => {
+  return vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
     ? vscode.workspace.workspaceFolders[0]
     : undefined;
+};
+
+const getRepoName = (): string => {
+  const firstFolder = getFirstWorkspaceFolder();
   const folder = firstFolder?.uri.fsPath;
   if (!folder) {
     output.appendLine('[getRepoName] no workspace folder, fallback demo-repo');
@@ -164,9 +169,17 @@ const normalizeIssue = (payload: unknown): ReviewIssue | null => {
   return maybeIssue as ReviewIssue;
 };
 
+const resolveIssueFilePath = (filePath: string): string => {
+  if (path.isAbsolute(filePath)) return filePath;
+  const firstFolder = getFirstWorkspaceFolder();
+  if (!firstFolder) return filePath;
+  return path.join(firstFolder.uri.fsPath, filePath);
+};
+
 async function openIssue(issue: ReviewIssue) {
-  output.appendLine(`[openIssue] start file=${issue.filePath} line=${issue.line}`);
-  const uri = vscode.Uri.file(issue.filePath);
+  const resolvedPath = resolveIssueFilePath(issue.filePath);
+  output.appendLine(`[openIssue] start file=${issue.filePath} resolved=${resolvedPath} line=${issue.line}`);
+  const uri = vscode.Uri.file(resolvedPath);
   const document = await vscode.workspace.openTextDocument(uri);
   const editor = await vscode.window.showTextDocument(document, { preview: false });
   const line = Math.max(issue.line - 1, 0);
