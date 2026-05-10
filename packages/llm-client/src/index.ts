@@ -41,14 +41,23 @@ const normalizeProvider = (provider?: ReviewProvider): ReviewProvider => {
 };
 
 export class MultiProviderReviewClient {
-  private readonly anthropic: Anthropic;
-  private readonly openai: OpenAI;
-  private readonly gemini: GoogleGenAI;
+  private _anthropic?: Anthropic;
+  private _openai?: OpenAI;
+  private _gemini?: GoogleGenAI;
 
-  constructor() {
-    this.anthropic = new Anthropic();
-    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    this.gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  private get anthropic(): Anthropic {
+    if (!this._anthropic) this._anthropic = new Anthropic();
+    return this._anthropic;
+  }
+
+  private get openai(): OpenAI {
+    if (!this._openai) this._openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    return this._openai;
+  }
+
+  private get gemini(): GoogleGenAI {
+    if (!this._gemini) this._gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    return this._gemini;
   }
 
   async reviewDiff(
