@@ -96,14 +96,22 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "lint": "oxlint src",
+    "build:webview": "esbuild webview-src/main.tsx --bundle --format=iife --platform=browser --jsx=automatic --outfile=media/reviewView.js",
+    "build": "tsc -p tsconfig.json && pnpm run build:webview",
+    "lint": "oxlint src webview-src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
     "@types/vscode": "^1.92.0",
+    "esbuild": "^0.25.12",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   }
 }
