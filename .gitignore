@@ -5,3 +5,4 @@ dist
 .env
 .env.*
 coverage
+.DS_Store
