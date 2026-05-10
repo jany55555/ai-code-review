@@ -11,7 +11,6 @@
   "activationEvents": [
     "onView:aiCodeReview.issues",
     "onCommand:aiCodeReview.refresh",
-    "onCommand:aiCodeReview.applyFix",
     "onCommand:aiCodeReview.openIssue",
     "onCommand:aiCodeReview.showReport",
     "onCommand:aiCodeReview.copyFixPrompt"
@@ -22,10 +21,6 @@
       {
         "command": "aiCodeReview.refresh",
         "title": "AI 代码审查: 刷新"
-      },
-      {
-        "command": "aiCodeReview.applyFix",
-        "title": "AI 代码审查: 修复"
       },
       {
         "command": "aiCodeReview.openIssue",
@@ -65,14 +60,9 @@
           "group": "inline"
         },
         {
-          "command": "aiCodeReview.applyFix",
-          "when": "view == aiCodeReview.issues && viewItem == ai-code-review-issue",
-          "group": "inline@1"
-        },
-        {
           "command": "aiCodeReview.copyFixPrompt",
           "when": "view == aiCodeReview.issues && viewItem == ai-code-review-issue",
-          "group": "inline@2"
+          "group": "inline@1"
         }
       ],
       "view/title": [

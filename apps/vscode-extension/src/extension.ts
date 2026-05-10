@@ -227,6 +227,31 @@ async function openIssue(issue: ReviewIssue) {
   output.appendLine('[openIssue] success')
 }
 
+const buildFixPrompt = (issue: ReviewIssue): string => {
+  return [
+    '请修复以下代码问题，并返回 unified diff（不要返回解释）：',
+    '',
+    `- 文件：${issue.filePath}`,
+    `- 行号：${issue.line}`,
+    `- 问题标题：${issue.title}`,
+    `- 严重级别：${issue.severity}`,
+    `- 证据：${issue.evidence}`,
+    `- 修复建议：${issue.suggestion}`,
+    '',
+    '要求：',
+    '1. 只修改必要代码，避免无关重构',
+    '2. 保持现有代码风格',
+    '3. 修复后不要引入新告警',
+    '4. 输出格式必须是可应用的 unified diff',
+  ].join('\n')
+}
+
+async function copyFixPrompt(issue: ReviewIssue) {
+  const prompt = buildFixPrompt(issue)
+  await vscode.env.clipboard.writeText(prompt)
+  await vscode.window.showInformationMessage('修复提示词已复制到剪贴板。')
+}
+
 async function showReviewReport() {
   if (!currentReview) {
     await vscode.window.showInformationMessage('暂无可查看的审查报告。')
@@ -265,78 +290,6 @@ async function showReviewReport() {
   await vscode.window.showTextDocument(doc, { preview: false })
 }
 
-const buildFixPrompt = (issue: ReviewIssue): string => {
-  return [
-    '请修复以下代码问题，并返回 unified diff（不要返回解释）：',
-    '',
-    `- 文件：${issue.filePath}`,
-    `- 行号：${issue.line}`,
-    `- 问题标题：${issue.title}`,
-    `- 严重级别：${issue.severity}`,
-    `- 证据：${issue.evidence}`,
-    `- 修复建议：${issue.suggestion}`,
-    '',
-    '要求：',
-    '1. 只修改必要代码，避免无关重构',
-    '2. 保持现有代码风格',
-    '3. 修复后不要引入新告警',
-    '4. 输出格式必须是可应用的 unified diff',
-  ].join('\n')
-}
-
-async function copyFixPrompt(issue: ReviewIssue) {
-  const prompt = buildFixPrompt(issue)
-  await vscode.env.clipboard.writeText(prompt)
-  await vscode.window.showInformationMessage('修复提示词已复制到剪贴板。')
-}
-
-async function applyLocalSuggestion(issue: ReviewIssue) {
-  const resolvedPath = resolveIssueFilePath(issue.filePath)
-  const uri = vscode.Uri.file(resolvedPath)
-  const document = await vscode.workspace.openTextDocument(uri)
-  const line = Math.max(issue.line - 1, 0)
-  const range = new vscode.Range(
-    line,
-    0,
-    line,
-    document.lineAt(line).text.length,
-  )
-  const edit = new vscode.WorkspaceEdit()
-  edit.replace(uri, range, issue.suggestion)
-  await vscode.workspace.applyEdit(edit)
-  await document.save()
-}
-
-async function applyIssueFix(issue: ReviewIssue) {
-  if (!issue.fixPatch) {
-    const choice = await vscode.window.showInformationMessage(
-      '当前问题没有可应用的修复补丁。',
-      '复制修复提示词',
-      '打开问题位置',
-    )
-    if (choice === '复制修复提示词') {
-      await copyFixPrompt(issue)
-      return
-    }
-    if (choice === '打开问题位置') {
-      await openIssue(issue)
-    }
-    return
-  }
-
-  const choice = await vscode.window.showInformationMessage(
-    '选择修复方式',
-    '应用本地建议',
-    '复制修复提示词',
-  )
-  if (choice === '复制修复提示词') {
-    await copyFixPrompt(issue)
-    return
-  }
-  if (choice === '应用本地建议') {
-    await applyLocalSuggestion(issue)
-  }
-}
 
 export function activate(context: vscode.ExtensionContext) {
   output.appendLine('[activate] extension activated')
@@ -365,33 +318,6 @@ export function activate(context: vscode.ExtensionContext) {
     }),
   )
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      'aiCodeReview.applyFix',
-      async (payload?: unknown) => {
-        const issue = normalizeIssue(payload)
-        if (!issue) {
-          await vscode.window.showWarningMessage('无法修复：当前问题数据无效。')
-          return
-        }
-        await applyIssueFix(issue)
-      },
-    ),
-  )
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      'aiCodeReview.copyFixPrompt',
-      async (payload?: unknown) => {
-        const issue = normalizeIssue(payload)
-        if (!issue) {
-          await vscode.window.showWarningMessage('无法复制：当前问题数据无效。')
-          return
-        }
-        await copyFixPrompt(issue)
-      },
-    ),
-  )
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -418,6 +344,20 @@ export function activate(context: vscode.ExtensionContext) {
           output.show(true)
           throw error
         }
+      },
+    ),
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'aiCodeReview.copyFixPrompt',
+      async (payload?: unknown) => {
+        const issue = normalizeIssue(payload)
+        if (!issue) {
+          await vscode.window.showWarningMessage('无法复制：当前问题数据无效。')
+          return
+        }
+        await copyFixPrompt(issue)
       },
     ),
   )
