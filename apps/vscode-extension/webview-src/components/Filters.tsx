@@ -12,9 +12,9 @@ export function Filters({ severity, onSeverityChange, query, onQueryChange }: Fi
   return (
     <section className={`${panelClass} text-xs`}>
       <div className={sectionTitleClass}>筛选</div>
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="inline-flex items-center gap-1.5">
-          <span className="text-[var(--vscode-descriptionForeground)]">级别</span>
+      <div className="filters-row">
+        <label className="filter-item">
+          <span className="field-label">级别</span>
           <select
             className={inputClass}
             value={severity}
@@ -26,8 +26,8 @@ export function Filters({ severity, onSeverityChange, query, onQueryChange }: Fi
             <option value="info">低</option>
           </select>
         </label>
-        <label className="inline-flex min-w-56 flex-1 items-center gap-1.5">
-          <span className="text-[var(--vscode-descriptionForeground)]">搜索</span>
+        <label className="filter-item filter-item-search">
+          <span className="field-label">搜索</span>
           <input
             className={`${inputClass} w-full`}
             type="text"

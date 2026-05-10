@@ -21737,20 +21737,21 @@
     warning: 1,
     info: 2
   };
-  var buttonClass = "cursor-pointer rounded-md border border-[var(--vscode-button-border,transparent)] bg-[var(--vscode-button-background)] px-3 py-1 text-xs text-[var(--vscode-button-foreground)] hover:bg-[var(--vscode-button-hoverBackground)]";
-  var inputClass = "rounded-md border border-[var(--vscode-panel-border)] bg-[var(--vscode-editor-background)] px-2 py-1 text-xs";
-  var panelClass = "rounded-lg border border-[var(--vscode-panel-border)] bg-[var(--vscode-editorWidget-background)] p-3 shadow-sm";
-  var sectionTitleClass = "mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--vscode-descriptionForeground)]";
-  var emptyClass = "rounded-lg border border-dashed border-[var(--vscode-panel-border)] p-3 text-[var(--vscode-descriptionForeground)]";
+  var buttonClass = "btn btn-primary";
+  var subtleButtonClass = "btn btn-subtle";
+  var inputClass = "input";
+  var panelClass = "panel";
+  var sectionTitleClass = "section-title";
+  var emptyClass = "empty";
 
   // webview-src/components/Filters.tsx
   var import_jsx_runtime = __toESM(require_jsx_runtime());
   function Filters({ severity, onSeverityChange, query, onQueryChange }) {
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: `${panelClass} text-xs`, children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: sectionTitleClass, children: "\u7B5B\u9009" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex flex-wrap items-center gap-2", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "inline-flex items-center gap-1.5", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-[var(--vscode-descriptionForeground)]", children: "\u7EA7\u522B" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "filters-row", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "filter-item", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "field-label", children: "\u7EA7\u522B" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
             "select",
             {
@@ -21766,8 +21767,8 @@
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "inline-flex min-w-56 flex-1 items-center gap-1.5", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-[var(--vscode-descriptionForeground)]", children: "\u641C\u7D22" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "filter-item filter-item-search", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "field-label", children: "\u641C\u7D22" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
             "input",
             {
@@ -21832,15 +21833,15 @@
   // webview-src/components/SeverityBadge.tsx
   var import_jsx_runtime2 = __toESM(require_jsx_runtime());
   var clsBySeverity = {
-    error: "text-[var(--vscode-errorForeground)] border-[var(--vscode-errorForeground)]",
-    warning: "text-[var(--vscode-editorWarning-foreground)] border-[var(--vscode-editorWarning-foreground)]",
-    info: "text-[var(--vscode-editorInfo-foreground)] border-[var(--vscode-editorInfo-foreground)]"
+    error: "severity-error",
+    warning: "severity-warning",
+    info: "severity-info"
   };
   function SeverityBadge({ severity }) {
     return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
       "span",
       {
-        className: `inline-flex h-5 min-w-5 items-center justify-center rounded-full border px-2 text-[11px] ${clsBySeverity[severity]}`,
+        className: `severity-badge ${clsBySeverity[severity]}`,
         children: severityLabel[severity]
       }
     );
@@ -21853,21 +21854,29 @@
     onOpenIssue,
     onCopyFixPrompt
   }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-md border border-[var(--vscode-panel-border)] bg-[var(--vscode-editor-background)] p-2.5", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mb-1 flex items-center gap-2", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(SeverityBadge, { severity: issue.severity }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { className: "m-0 text-[13px] leading-5", children: issue.title })
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { className: "issue-card", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "issue-card-head", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "issue-main", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { className: "issue-title", children: issue.title }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "issue-path", children: [
+            issue.filePath,
+            ":",
+            issue.line
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(SeverityBadge, { severity: issue.severity })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mb-1 break-all text-xs text-[var(--vscode-descriptionForeground)]", children: [
-        issue.filePath,
-        ":",
-        issue.line
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "issue-section", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "issue-section-title", children: "\u8BC1\u636E" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "issue-text", children: issue.evidence })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "m-0 text-xs leading-5 break-words", children: issue.evidence }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "m-0 mt-1 text-xs leading-5 break-words", children: issue.suggestion }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mt-2 flex flex-wrap gap-2", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: buttonClass, onClick: () => onOpenIssue(issue.id), children: "\u6253\u5F00\u95EE\u9898" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: buttonClass, onClick: () => onCopyFixPrompt(issue.id), children: "\u590D\u5236\u4FEE\u590D\u63D0\u793A\u8BCD" })
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "issue-section", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "issue-section-title", children: "\u5EFA\u8BAE" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "issue-text", children: issue.suggestion })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "issue-actions", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: buttonClass, onClick: () => onOpenIssue(issue.id), children: "\u5B9A\u4F4D\u4EE3\u7801" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: subtleButtonClass, onClick: () => onCopyFixPrompt(issue.id), children: "\u590D\u5236\u4FEE\u590D\u63D0\u793A\u8BCD" })
       ] })
     ] });
   }
@@ -21886,30 +21895,26 @@
       const text = review.issues?.length ? "\u5F53\u524D\u7B5B\u9009\u6761\u4EF6\u4E0B\u65E0\u95EE\u9898\u3002" : "\u672A\u53D1\u73B0\u95EE\u9898\u3002";
       return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("section", { className: emptyClass, children: text });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: `${panelClass} flex flex-col gap-3`, children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: `${panelClass} issues-panel`, children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: sectionTitleClass, children: "\u95EE\u9898\u5217\u8868" }),
-      groupedIssues.map((group) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-        "article",
-        {
-          className: "rounded-lg border border-[var(--vscode-panel-border)] bg-[var(--vscode-sideBar-background)] p-3",
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("header", { className: "mb-2 flex items-center justify-between gap-2", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "break-all text-xs font-semibold text-[var(--vscode-descriptionForeground)]", children: group.filePath }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "rounded-full border border-[var(--vscode-panel-border)] px-2 py-0.5 text-[11px] text-[var(--vscode-descriptionForeground)]", children: group.issues.length })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex flex-col gap-2", children: group.issues.map((issue) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              IssueItem,
-              {
-                issue,
-                onOpenIssue,
-                onCopyFixPrompt
-              },
-              issue.id
-            )) })
-          ]
-        },
-        group.filePath
-      ))
+      groupedIssues.map((group) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "issue-group", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("header", { className: "issue-group-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "issue-group-path", children: group.filePath }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "issue-group-count", children: [
+            group.issues.length,
+            " \u6761"
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "issue-list", children: group.issues.map((issue) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          IssueItem,
+          {
+            issue,
+            onOpenIssue,
+            onCopyFixPrompt
+          },
+          issue.id
+        )) })
+      ] }, group.filePath))
     ] });
   }
 
@@ -21919,8 +21924,14 @@
   var SUMMARY_COLLAPSE_THRESHOLD = 140;
   function Summary({ review }) {
     const [expanded, setExpanded] = (0, import_react.useState)(false);
+    const summary = review?.summary ?? "";
+    const shouldCollapse = summary.length > SUMMARY_COLLAPSE_THRESHOLD;
+    const summaryText = (0, import_react.useMemo)(() => {
+      if (!shouldCollapse || expanded) return summary;
+      return `${summary.slice(0, SUMMARY_COLLAPSE_THRESHOLD)}...`;
+    }, [expanded, summary, shouldCollapse]);
     if (!review) {
-      return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("section", { className: `${panelClass} text-xs leading-5`, children: "\u6682\u65E0\u5BA1\u67E5\u7ED3\u679C\uFF0C\u7B49\u5F85\u540E\u7AEF\u63A8\u9001\u6216\u624B\u52A8\u5237\u65B0\u3002" });
+      return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("section", { className: panelClass, children: "\u6682\u65E0\u5BA1\u67E5\u7ED3\u679C\uFF0C\u7B49\u5F85\u540E\u7AEF\u63A8\u9001\u6216\u624B\u52A8\u5237\u65B0\u3002" });
     }
     const rows = [
       ["\u72B6\u6001", review.status],
@@ -21928,31 +21939,26 @@
       ["\u63D0\u4EA4", review.sha],
       ["\u89E6\u53D1", review.trigger ?? "manual"]
     ];
-    const shouldCollapse = review.summary.length > SUMMARY_COLLAPSE_THRESHOLD;
-    const summaryText = (0, import_react.useMemo)(() => {
-      if (!shouldCollapse || expanded) return review.summary;
-      return `${review.summary.slice(0, SUMMARY_COLLAPSE_THRESHOLD)}...`;
-    }, [expanded, review.summary, shouldCollapse]);
     if (review.progress) {
       rows.splice(4, 0, ["\u8FDB\u5EA6", `${review.progress.index}/${review.progress.total}`]);
       rows.splice(5, 0, ["\u5F53\u524D\u6587\u4EF6", review.progress.filePath]);
       rows.splice(6, 0, ["\u9636\u6BB5", review.progress.message]);
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("section", { className: `${panelClass} text-xs leading-5`, children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("section", { className: panelClass, children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: sectionTitleClass, children: "\u5BA1\u67E5\u6982\u89C8" }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col gap-1.5", children: [
-        rows.map(([label, value]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "grid grid-cols-[56px_1fr] items-start gap-2", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { className: "text-[var(--vscode-descriptionForeground)]", children: label }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "break-all", children: value })
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "summary-rows", children: [
+        rows.map(([label, value]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "summary-row", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { className: "summary-label", children: label }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "summary-value", children: value })
         ] }, label)),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "grid grid-cols-[56px_1fr] items-start gap-2", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { className: "text-[var(--vscode-descriptionForeground)]", children: "\u6458\u8981" }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "summary-row", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { className: "summary-label", children: "\u6458\u8981" }),
           /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "m-0 break-words whitespace-pre-wrap", children: summaryText }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "summary-text", children: summaryText }),
             shouldCollapse ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
               "button",
               {
-                className: "mt-1 cursor-pointer border-0 bg-transparent p-0 text-[var(--vscode-textLink-foreground)] hover:underline",
+                className: "link-button",
                 onClick: () => setExpanded((value) => !value),
                 children: expanded ? "\u6536\u8D77" : "\u5C55\u5F00"
               }
@@ -21960,16 +21966,16 @@
           ] })
         ] })
       ] }),
-      review.errorMessage ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mt-2 text-[var(--vscode-errorForeground)]", children: review.errorMessage }) : null
+      review.errorMessage ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "error-text", children: review.errorMessage }) : null
     ] });
   }
 
   // webview-src/components/Toolbar.tsx
   var import_jsx_runtime5 = __toESM(require_jsx_runtime());
   function Toolbar({ onRefresh, onShowReport }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("section", { className: "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--vscode-panel-border)] bg-[var(--vscode-editorWidget-background)] p-2.5", "aria-label": "\u529F\u80FD\u533A", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "text-[11px] font-semibold uppercase tracking-wide text-[var(--vscode-descriptionForeground)]", children: "\u64CD\u4F5C" }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex flex-wrap items-center gap-2", children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("section", { className: "toolbar", "aria-label": "\u529F\u80FD\u533A", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "toolbar-title", children: "\u64CD\u4F5C" }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "toolbar-actions", children: [
         /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("button", { className: buttonClass, onClick: onRefresh, children: "\u5237\u65B0" }),
         /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("button", { className: buttonClass, onClick: onShowReport, children: "\u67E5\u770B\u62A5\u544A" })
       ] })
@@ -21996,7 +22002,7 @@
       () => groupIssuesByFile(filteredIssues),
       [filteredIssues]
     );
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("main", { className: "mx-auto flex w-full max-w-[980px] flex-col gap-3 p-3 font-[var(--vscode-font-family)] text-[var(--vscode-foreground)]", children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("main", { className: "app-root", children: [
       /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Toolbar, { onRefresh, onShowReport }),
       /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Summary, { review }),
       /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(

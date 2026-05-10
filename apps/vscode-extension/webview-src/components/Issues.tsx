@@ -1,4 +1,4 @@
-import { buttonClass, emptyClass, panelClass, sectionTitleClass } from '../constants'
+import { buttonClass, emptyClass, panelClass, sectionTitleClass, subtleButtonClass } from '../constants'
 import type { ReviewData, ReviewIssue } from '../types'
 import { isPendingStatus } from '../utils/review'
 import { SeverityBadge } from './SeverityBadge'
@@ -26,23 +26,34 @@ function IssueItem({
   onCopyFixPrompt: (issueId: string) => void
 }) {
   return (
-    <div className="rounded-md border border-[var(--vscode-panel-border)] bg-[var(--vscode-editor-background)] p-2.5">
-      <div className="mb-1 flex items-center gap-2">
+    <article className="issue-card">
+      <div className="issue-card-head">
+        <div className="issue-main">
+          <h3 className="issue-title">{issue.title}</h3>
+          <div className="issue-path">
+            {issue.filePath}:{issue.line}
+          </div>
+        </div>
         <SeverityBadge severity={issue.severity} />
-        <h3 className="m-0 text-[13px] leading-5">{issue.title}</h3>
       </div>
-      <div className="mb-1 break-all text-xs text-[var(--vscode-descriptionForeground)]">
-        {issue.filePath}:{issue.line}
+
+      <div className="issue-section">
+        <div className="issue-section-title">证据</div>
+        <p className="issue-text">{issue.evidence}</p>
       </div>
-      <p className="m-0 text-xs leading-5 break-words">{issue.evidence}</p>
-      <p className="m-0 mt-1 text-xs leading-5 break-words">{issue.suggestion}</p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <button className={buttonClass} onClick={() => onOpenIssue(issue.id)}>打开问题</button>
-        <button className={buttonClass} onClick={() => onCopyFixPrompt(issue.id)}>
+
+      <div className="issue-section">
+        <div className="issue-section-title">建议</div>
+        <p className="issue-text">{issue.suggestion}</p>
+      </div>
+
+      <div className="issue-actions">
+        <button className={buttonClass} onClick={() => onOpenIssue(issue.id)}>定位代码</button>
+        <button className={subtleButtonClass} onClick={() => onCopyFixPrompt(issue.id)}>
           复制修复提示词
         </button>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -63,22 +74,19 @@ export function Issues({
   }
 
   return (
-    <section className={`${panelClass} flex flex-col gap-3`}>
+    <section className={`${panelClass} issues-panel`}>
       <div className={sectionTitleClass}>问题列表</div>
       {groupedIssues.map(group => (
-        <article
-          key={group.filePath}
-          className="rounded-lg border border-[var(--vscode-panel-border)] bg-[var(--vscode-sideBar-background)] p-3"
-        >
-          <header className="mb-2 flex items-center justify-between gap-2">
-            <span className="break-all text-xs font-semibold text-[var(--vscode-descriptionForeground)]">
+        <section key={group.filePath} className="issue-group">
+          <header className="issue-group-header">
+            <span className="issue-group-path">
               {group.filePath}
             </span>
-            <span className="rounded-full border border-[var(--vscode-panel-border)] px-2 py-0.5 text-[11px] text-[var(--vscode-descriptionForeground)]">
-              {group.issues.length}
+            <span className="issue-group-count">
+              {group.issues.length} 条
             </span>
           </header>
-          <div className="flex flex-col gap-2">
+          <div className="issue-list">
             {group.issues.map(issue => (
               <IssueItem
                 key={issue.id}
@@ -88,7 +96,7 @@ export function Issues({
               />
             ))}
           </div>
-        </article>
+        </section>
       ))}
     </section>
   )

@@ -12,17 +12,14 @@ export const severityOrder: Record<IssueSeverity, number> = {
   info: 2,
 }
 
-export const buttonClass =
-  'cursor-pointer rounded-md border border-[var(--vscode-button-border,transparent)] bg-[var(--vscode-button-background)] px-3 py-1 text-xs text-[var(--vscode-button-foreground)] hover:bg-[var(--vscode-button-hoverBackground)]'
+export const buttonClass = 'btn btn-primary'
 
-export const inputClass =
-  'rounded-md border border-[var(--vscode-panel-border)] bg-[var(--vscode-editor-background)] px-2 py-1 text-xs'
+export const subtleButtonClass = 'btn btn-subtle'
 
-export const panelClass =
-  'rounded-lg border border-[var(--vscode-panel-border)] bg-[var(--vscode-editorWidget-background)] p-3 shadow-sm'
+export const inputClass = 'input'
 
-export const sectionTitleClass =
-  'mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--vscode-descriptionForeground)]'
+export const panelClass = 'panel'
 
-export const emptyClass =
-  'rounded-lg border border-dashed border-[var(--vscode-panel-border)] p-3 text-[var(--vscode-descriptionForeground)]'
+export const sectionTitleClass = 'section-title'
+
+export const emptyClass = 'empty'

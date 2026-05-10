@@ -407,8 +407,8 @@ class ReviewWebviewProvider implements vscode.WebviewViewProvider {
   <link rel="stylesheet" href="${styleUri}" />
   <title>AI Code Review</title>
 </head>
-<body>
-  <div id="app"></div>
+<body style="margin:0;padding:0;overflow-x:hidden;max-width:100%;">
+  <div id="app" style="max-width:100%;overflow-x:hidden;"></div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`

@@ -37,7 +37,7 @@ export function App({
   )
 
   return (
-    <main className="mx-auto flex w-full max-w-[980px] flex-col gap-3 p-3 font-[var(--vscode-font-family)] text-[var(--vscode-foreground)]">
+    <main className="app-root">
       <Toolbar onRefresh={onRefresh} onShowReport={onShowReport} />
       <Summary review={review} />
       <Filters
