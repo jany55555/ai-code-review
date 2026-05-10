@@ -54,6 +54,7 @@ const issues = new Map<string, ReviewIssue>()
 const output = vscode.window.createOutputChannel('AI 代码审查')
 let currentReview: ReviewRun | null = null
 let sseAbortController: AbortController | undefined
+let sseRetryTimer: ReturnType<typeof setTimeout> | undefined
 let reviewWebviewProvider: ReviewWebviewProvider | undefined
 
 const toSeverity = (
@@ -173,6 +174,8 @@ async function connectSse() {
 
   const apiUrl = getApiUrl()
   const repo = getRepoName()
+  output.appendLine(`[sse] connecting ${apiUrl}/review/stream/${repo}`)
+
   const response = await fetch(
     `${apiUrl}/review/stream/${encodeURIComponent(repo)}`,
     { signal: sseAbortController.signal },
@@ -181,13 +184,18 @@ async function connectSse() {
     throw new Error(`SSE 连接失败: ${response.status}`)
   }
 
+  output.appendLine('[sse] connected')
+
   const reader = response.body.getReader()
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
 
   while (!sseAbortController.signal.aborted) {
     const { value, done } = await reader.read()
-    if (done) break
+    if (done) {
+      output.appendLine('[sse] stream closed by server')
+      break
+    }
     buffer += decoder.decode(value, { stream: true })
 
     let boundaryIndex = buffer.indexOf('\n\n')
@@ -211,6 +219,28 @@ async function connectSse() {
       }
     }
   }
+}
+
+function startSseLoop() {
+  sseRetryTimer && clearTimeout(sseRetryTimer)
+
+  const run = async () => {
+    try {
+      await connectSse()
+    } catch (error) {
+      if (!sseAbortController?.signal.aborted) {
+        output.appendLine(`[sse] connection error: ${String(error)}`)
+      }
+    }
+
+    if (sseAbortController?.signal.aborted) return
+
+    sseRetryTimer = setTimeout(() => {
+      void run()
+    }, 3000)
+  }
+
+  void run()
 }
 
 const normalizeIssue = (payload: unknown): ReviewIssue | null => {
@@ -502,9 +532,12 @@ export function activate(context: vscode.ExtensionContext) {
   )
 
   void loadReview().catch(() => undefined)
-  void connectSse().catch(() => undefined)
+  startSseLoop()
   context.subscriptions.push(
-    new vscode.Disposable(() => sseAbortController?.abort()),
+    new vscode.Disposable(() => {
+      sseAbortController?.abort()
+      if (sseRetryTimer) clearTimeout(sseRetryTimer)
+    }),
   )
 }
 
