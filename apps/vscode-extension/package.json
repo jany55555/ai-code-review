@@ -4,6 +4,7 @@
   "description": "Show AI review findings and apply fixes.",
   "version": "0.0.1",
   "publisher": "ai-code-review",
+  "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.92.0"
   },
