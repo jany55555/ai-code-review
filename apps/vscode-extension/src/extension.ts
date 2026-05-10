@@ -63,6 +63,21 @@ const getApiUrl = (): string => {
   )
 }
 
+const getReviewProvider = (): 'claude' | 'openai' | 'gemini' => {
+  const provider = vscode.workspace
+    .getConfiguration('aiCodeReview')
+    .get<string>('provider')
+  if (provider === 'openai' || provider === 'gemini') return provider
+  return 'claude'
+}
+
+const getReviewModel = (): string => {
+  return (
+    vscode.workspace.getConfiguration('aiCodeReview').get<string>('model') ??
+    'claude-sonnet-4-6'
+  )
+}
+
 const getFirstWorkspaceFolder = (): vscode.WorkspaceFolder | undefined => {
   return vscode.workspace.workspaceFolders &&
     vscode.workspace.workspaceFolders.length > 0
@@ -414,7 +429,9 @@ export function activate(context: vscode.ExtensionContext) {
         refreshDiagnostics([])
         reviewWebviewProvider?.postState(buildViewState())
         channel.appendLine(String(error))
-        channel.appendLine('暂未找到审查记录，请先触发一次 /review/run。')
+        channel.appendLine(
+          `暂未找到审查记录，请先触发一次 /review/run（当前配置: ${getReviewProvider()}/${getReviewModel()}）。`,
+        )
       }
     }),
   )

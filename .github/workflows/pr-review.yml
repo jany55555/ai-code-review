@@ -11,7 +11,11 @@ jobs:
       - name: Trigger review API
         env:
           REVIEW_API_URL: ${{ secrets.REVIEW_API_URL }}
+          REVIEW_PROVIDER: ${{ vars.REVIEW_PROVIDER }}
+          REVIEW_MODEL: ${{ vars.REVIEW_MODEL }}
         run: |
+          provider="${REVIEW_PROVIDER:-claude}"
+          model="${REVIEW_MODEL:-claude-sonnet-4-6}"
           curl -sS -X POST "$REVIEW_API_URL/review/run" \
             -H "Content-Type: application/json" \
-            -d '{"repo":"'"${{ github.repository }}"'","pr":'"${{ github.event.pull_request.number }}"',"sha":"'"${{ github.event.pull_request.head.sha }}"'","diff":"placeholder"}'
+            -d '{"repo":"'"${{ github.repository }}"'","pr":'"${{ github.event.pull_request.number }}"',"sha":"'"${{ github.event.pull_request.head.sha }}"'","diff":"placeholder","provider":"'"$provider"'","model":"'"$model"'"}'

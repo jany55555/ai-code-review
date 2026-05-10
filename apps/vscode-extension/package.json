@@ -79,6 +79,17 @@
           "type": "string",
           "default": "http://localhost:8787/review/stream",
           "description": "SSE push URL"
+        },
+        "aiCodeReview.provider": {
+          "type": "string",
+          "enum": ["claude", "openai", "gemini"],
+          "default": "claude",
+          "description": "Review model provider used by /review/run callers"
+        },
+        "aiCodeReview.model": {
+          "type": "string",
+          "default": "claude-sonnet-4-6",
+          "description": "Review model name used by /review/run callers"
         }
       }
     }

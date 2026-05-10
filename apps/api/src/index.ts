@@ -1,13 +1,13 @@
 import Fastify from 'fastify';
-import { ClaudeReviewClient } from '@ai-code-review/llm-client';
+import { MultiProviderReviewClient } from '@ai-code-review/llm-client';
 import { InMemoryStore } from '@ai-code-review/storage';
 import { runReview } from '@ai-code-review/review-engine';
 import { buildPullRequestContext } from '@ai-code-review/github-adapter';
-import type { ReviewRun, ReviewStatus } from '@ai-code-review/contracts';
+import type { ReviewProvider, ReviewRun, ReviewStatus } from '@ai-code-review/contracts';
 
 const app = Fastify({ logger: true });
 const store = new InMemoryStore();
-const reviewClient = new ClaudeReviewClient();
+const reviewClient = new MultiProviderReviewClient();
 
 app.get('/health', async () => ({ ok: true }));
 
@@ -24,6 +24,7 @@ const toStatus = (hasIssues: boolean): ReviewStatus => {
 };
 
 const makeReview = (body: { repo: string; pr: number; sha: string; trigger?: 'manual' | 'post-commit' | 'ci' }, review: ReviewRun): ReviewRun => ({
+
   ...review,
   trigger: body.trigger ?? 'manual',
   status: toStatus(review.issues.length > 0),
@@ -37,6 +38,8 @@ app.post('/review/run', async (request, reply) => {
     sha: string;
     diff: string;
     trigger?: 'manual' | 'post-commit' | 'ci';
+    provider?: ReviewProvider;
+    model?: string;
   };
 
   const draft: ReviewRun = {
@@ -62,7 +65,14 @@ app.post('/review/run', async (request, reply) => {
 
   try {
     const review = await runReview(
-      buildPullRequestContext(body.repo, body.pr, body.sha, body.diff),
+      buildPullRequestContext(
+        body.repo,
+        body.pr,
+        body.sha,
+        body.diff,
+        body.provider ?? 'claude',
+        body.model ?? 'claude-sonnet-4-6',
+      ),
       reviewClient,
     );
 

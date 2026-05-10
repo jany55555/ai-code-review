@@ -1,5 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { PullRequestContext, ReviewIssue } from '@ai-code-review/contracts';
+import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
+import type {
+  PullRequestContext,
+  ReviewIssue,
+  ReviewProvider,
+} from '@ai-code-review/contracts';
 
 const promptFor = (context: PullRequestContext): string => {
   return [
@@ -15,16 +21,59 @@ const promptFor = (context: PullRequestContext): string => {
   ].join('\n\n');
 };
 
-export class ClaudeReviewClient {
-  private readonly client: Anthropic;
+const parseReviewOutput = (text: string): { summary: string; issues: ReviewIssue[] } => {
+  try {
+    const parsed = JSON.parse(text) as { summary?: string; issues?: ReviewIssue[] };
+    return {
+      summary: parsed.summary ?? 'No summary generated.',
+      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+    };
+  } catch {
+    return {
+      summary: 'Model output was not valid JSON.',
+      issues: [],
+    };
+  }
+};
+
+const normalizeProvider = (provider?: ReviewProvider): ReviewProvider => {
+  return provider ?? 'claude';
+};
+
+export class MultiProviderReviewClient {
+  private readonly anthropic: Anthropic;
+  private readonly openai: OpenAI;
+  private readonly gemini: GoogleGenAI;
 
   constructor() {
-    this.client = new Anthropic();
+    this.anthropic = new Anthropic();
+    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    this.gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
 
-  async reviewDiff(context: PullRequestContext): Promise<{ summary: string; issues: ReviewIssue[] }> {
-    const response = await this.client.messages.create({
-      model: 'claude-sonnet-4-6',
+  async reviewDiff(
+    context: PullRequestContext,
+  ): Promise<{ summary: string; issues: ReviewIssue[] }> {
+    const provider = normalizeProvider(context.provider);
+
+    if (provider === 'claude') {
+      return this.reviewWithClaude(context);
+    }
+    if (provider === 'openai') {
+      return this.reviewWithOpenAI(context);
+    }
+    if (provider === 'gemini') {
+      return this.reviewWithGemini(context);
+    }
+
+    throw new Error(`Unsupported provider: ${String(provider)}`);
+  }
+
+  private async reviewWithClaude(
+    context: PullRequestContext,
+  ): Promise<{ summary: string; issues: ReviewIssue[] }> {
+    const response = await this.anthropic.messages.create({
+      model: context.model ?? 'claude-sonnet-4-6',
       max_tokens: 16000,
       messages: [{ role: 'user', content: promptFor(context) }],
     });
@@ -34,17 +83,38 @@ export class ClaudeReviewClient {
       return { summary: 'No summary generated.', issues: [] };
     }
 
-    try {
-      const parsed = JSON.parse(text.text) as { summary?: string; issues?: ReviewIssue[] };
-      return {
-        summary: parsed.summary ?? 'No summary generated.',
-        issues: Array.isArray(parsed.issues) ? parsed.issues : [],
-      };
-    } catch {
-      return {
-        summary: 'Model output was not valid JSON.',
-        issues: [],
-      };
+    return parseReviewOutput(text.text);
+  }
+
+  private async reviewWithOpenAI(
+    context: PullRequestContext,
+  ): Promise<{ summary: string; issues: ReviewIssue[] }> {
+    const response = await this.openai.responses.create({
+      model: context.model ?? 'gpt-4o',
+      input: promptFor(context),
+    });
+
+    const text = response.output_text;
+    if (!text) {
+      return { summary: 'No summary generated.', issues: [] };
     }
+
+    return parseReviewOutput(text);
+  }
+
+  private async reviewWithGemini(
+    context: PullRequestContext,
+  ): Promise<{ summary: string; issues: ReviewIssue[] }> {
+    const response = await this.gemini.models.generateContent({
+      model: context.model ?? 'gemini-1.5-pro',
+      contents: promptFor(context),
+    });
+
+    const text = response.text;
+    if (!text) {
+      return { summary: 'No summary generated.', issues: [] };
+    }
+
+    return parseReviewOutput(text);
   }
 }
