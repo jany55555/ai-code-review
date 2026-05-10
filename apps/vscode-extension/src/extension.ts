@@ -37,6 +37,7 @@ type TreeNode =
 const diagnostics = vscode.languages.createDiagnosticCollection('ai-code-review');
 const issues = new Map<string, ReviewIssue>();
 const treeChange = new vscode.EventEmitter<void>();
+const output = vscode.window.createOutputChannel('AI 代码审查');
 let currentReview: ReviewRun | null = null;
 let sseAbortController: AbortController | undefined;
 
@@ -55,13 +56,19 @@ const getRepoName = (): string => {
     ? vscode.workspace.workspaceFolders[0]
     : undefined;
   const folder = firstFolder?.uri.fsPath;
-  if (!folder) return 'demo-repo';
+  if (!folder) {
+    output.appendLine('[getRepoName] no workspace folder, fallback demo-repo');
+    return 'demo-repo';
+  }
 
   try {
     const remote = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: folder, encoding: 'utf8' }).trim();
     const normalized = remote.replace(/\.git$/, '');
-    return normalized.split('/').pop() ?? firstFolder?.name ?? 'demo-repo';
-  } catch {
+    const repo = normalized.split('/').pop() ?? firstFolder?.name ?? 'demo-repo';
+    output.appendLine(`[getRepoName] resolved repo=${repo}, folder=${folder}`);
+    return repo;
+  } catch (error) {
+    output.appendLine(`[getRepoName] git remote lookup failed: ${String(error)}`);
     return firstFolder?.name ?? 'demo-repo';
   }
 };
@@ -145,6 +152,7 @@ async function connectSse() {
 }
 
 async function openIssue(issue: ReviewIssue) {
+  output.appendLine(`[openIssue] start file=${issue.filePath} line=${issue.line}`);
   const uri = vscode.Uri.file(issue.filePath);
   const document = await vscode.workspace.openTextDocument(uri);
   const editor = await vscode.window.showTextDocument(document, { preview: false });
@@ -152,6 +160,7 @@ async function openIssue(issue: ReviewIssue) {
   const pos = new vscode.Position(line, 0);
   editor.selection = new vscode.Selection(pos, pos);
   editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+  output.appendLine('[openIssue] success');
 }
 
 async function showReviewReport() {
@@ -209,7 +218,8 @@ async function applyIssueFix(issue: ReviewIssue) {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  context.subscriptions.push(diagnostics, treeChange);
+  output.appendLine('[activate] extension activated');
+  context.subscriptions.push(diagnostics, treeChange, output);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('aiCodeReview.refresh', async () => {
@@ -243,8 +253,20 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('aiCodeReview.openIssue', async (issue?: ReviewIssue) => {
-      if (!issue) return;
-      await openIssue(issue);
+      try {
+        if (!issue) {
+          output.appendLine('[aiCodeReview.openIssue] issue argument is empty');
+          return;
+        }
+        await openIssue(issue);
+      } catch (error) {
+        output.appendLine(`[aiCodeReview.openIssue] failed: ${String(error)}`);
+        if (error instanceof Error && error.stack) {
+          output.appendLine(error.stack);
+        }
+        output.show(true);
+        throw error;
+      }
     }),
   );
 
