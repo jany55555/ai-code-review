@@ -19,7 +19,10 @@ export const inputClass =
   'rounded-md border border-[var(--vscode-panel-border)] bg-[var(--vscode-editor-background)] px-2 py-1 text-xs'
 
 export const panelClass =
-  'rounded-lg border border-[var(--vscode-panel-border)] bg-[var(--vscode-editorWidget-background)] p-3'
+  'rounded-lg border border-[var(--vscode-panel-border)] bg-[var(--vscode-editorWidget-background)] p-3 shadow-sm'
+
+export const sectionTitleClass =
+  'mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--vscode-descriptionForeground)]'
 
 export const emptyClass =
   'rounded-lg border border-dashed border-[var(--vscode-panel-border)] p-3 text-[var(--vscode-descriptionForeground)]'

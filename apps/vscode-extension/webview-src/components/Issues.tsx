@@ -1,4 +1,4 @@
-import { buttonClass, emptyClass } from '../constants'
+import { buttonClass, emptyClass, panelClass, sectionTitleClass } from '../constants'
 import type { ReviewData, ReviewIssue } from '../types'
 import { isPendingStatus } from '../utils/review'
 import { SeverityBadge } from './SeverityBadge'
@@ -26,7 +26,7 @@ function IssueItem({
   onCopyFixPrompt: (issueId: string) => void
 }) {
   return (
-    <div className="rounded-md border border-[var(--vscode-panel-border)] bg-[var(--vscode-editor-background)] p-2">
+    <div className="rounded-md border border-[var(--vscode-panel-border)] bg-[var(--vscode-editor-background)] p-2.5">
       <div className="mb-1 flex items-center gap-2">
         <SeverityBadge severity={issue.severity} />
         <h3 className="m-0 text-[13px] leading-5">{issue.title}</h3>
@@ -63,14 +63,20 @@ export function Issues({
   }
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className={`${panelClass} flex flex-col gap-3`}>
+      <div className={sectionTitleClass}>问题列表</div>
       {groupedIssues.map(group => (
         <article
           key={group.filePath}
           className="rounded-lg border border-[var(--vscode-panel-border)] bg-[var(--vscode-sideBar-background)] p-3"
         >
-          <header className="mb-2 break-all text-xs font-semibold text-[var(--vscode-descriptionForeground)]">
-            {group.filePath} ({group.issues.length})
+          <header className="mb-2 flex items-center justify-between gap-2">
+            <span className="break-all text-xs font-semibold text-[var(--vscode-descriptionForeground)]">
+              {group.filePath}
+            </span>
+            <span className="rounded-full border border-[var(--vscode-panel-border)] px-2 py-0.5 text-[11px] text-[var(--vscode-descriptionForeground)]">
+              {group.issues.length}
+            </span>
           </header>
           <div className="flex flex-col gap-2">
             {group.issues.map(issue => (
