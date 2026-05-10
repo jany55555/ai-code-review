@@ -47,24 +47,13 @@
     "views": {
       "aiCodeReview": [
         {
+          "type": "webview",
           "id": "aiCodeReview.issues",
           "name": "问题列表"
         }
       ]
     },
     "menus": {
-      "view/item/context": [
-        {
-          "command": "aiCodeReview.openIssue",
-          "when": "view == aiCodeReview.issues && viewItem == ai-code-review-issue",
-          "group": "inline"
-        },
-        {
-          "command": "aiCodeReview.copyFixPrompt",
-          "when": "view == aiCodeReview.issues && viewItem == ai-code-review-issue",
-          "group": "inline@1"
-        }
-      ],
       "view/title": [
         {
           "command": "aiCodeReview.refresh",

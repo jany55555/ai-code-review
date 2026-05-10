@@ -29,19 +29,23 @@ interface ReviewRun {
   errorMessage?: string
 }
 
-type TreeNode =
-  | { type: 'action'; label: string; command: string; arguments?: unknown[] }
-  | { type: 'summary'; label: string; description: string; tooltip?: string }
-  | { type: 'issue'; issue: ReviewIssue }
-  | { type: 'report'; label: string; command: string }
+interface ViewState {
+  review: ReviewRun | null
+}
 
-const diagnostics =
-  vscode.languages.createDiagnosticCollection('ai-code-review')
+type WebviewMessage =
+  | { type: 'ready' }
+  | { type: 'action.refresh' }
+  | { type: 'action.showReport' }
+  | { type: 'action.openIssue'; issueId: string }
+  | { type: 'action.copyFixPrompt'; issueId: string }
+
+const diagnostics = vscode.languages.createDiagnosticCollection('ai-code-review')
 const issues = new Map<string, ReviewIssue>()
-const treeChange = new vscode.EventEmitter<void>()
 const output = vscode.window.createOutputChannel('AI 代码审查')
 let currentReview: ReviewRun | null = null
 let sseAbortController: AbortController | undefined
+let reviewWebviewProvider: ReviewWebviewProvider | undefined
 
 const toSeverity = (
   severity: ReviewIssue['severity'],
@@ -83,9 +87,7 @@ const getRepoName = (): string => {
     output.appendLine(`[getRepoName] resolved repo=${repo}, folder=${folder}`)
     return repo
   } catch (error) {
-    output.appendLine(
-      `[getRepoName] git remote lookup failed: ${String(error)}`,
-    )
+    output.appendLine(`[getRepoName] git remote lookup failed: ${String(error)}`)
     return firstFolder?.name ?? 'demo-repo'
   }
 }
@@ -94,7 +96,8 @@ const refreshDiagnostics = (issueList: ReviewIssue[]) => {
   diagnostics.clear()
 
   for (const issue of issueList) {
-    const uri = vscode.Uri.file(issue.filePath)
+    const resolvedPath = resolveIssueFilePath(issue.filePath)
+    const uri = vscode.Uri.file(resolvedPath)
     const line = Math.max(issue.line - 1, 0)
     const range = new vscode.Range(line, 0, line, 1)
     const diagnostic = new vscode.Diagnostic(
@@ -108,9 +111,9 @@ const refreshDiagnostics = (issueList: ReviewIssue[]) => {
   }
 }
 
-const refreshView = () => {
-  treeChange.fire()
-}
+const buildViewState = (): ViewState => ({
+  review: currentReview,
+})
 
 const applyReview = (review: ReviewRun) => {
   currentReview = review
@@ -119,7 +122,7 @@ const applyReview = (review: ReviewRun) => {
     issues.set(issue.id, issue)
   }
   refreshDiagnostics(review.issues)
-  refreshView()
+  reviewWebviewProvider?.postState(buildViewState())
 }
 
 async function loadReview() {
@@ -290,34 +293,124 @@ async function showReviewReport() {
   await vscode.window.showTextDocument(doc, { preview: false })
 }
 
+class ReviewWebviewProvider implements vscode.WebviewViewProvider {
+  private view?: vscode.WebviewView
+
+  constructor(private readonly extensionUri: vscode.Uri) {}
+
+  resolveWebviewView(view: vscode.WebviewView): void {
+    this.view = view
+    view.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'media')],
+    }
+    view.webview.html = this.getHtml(view.webview)
+
+    view.webview.onDidReceiveMessage(async (message: WebviewMessage) => {
+      try {
+        await this.handleMessage(message)
+      } catch (error) {
+        this.postMessage({
+          type: 'action.result',
+          ok: false,
+          error: String(error),
+        })
+      }
+    })
+
+    this.postState(buildViewState())
+  }
+
+  postState(state: ViewState) {
+    this.postMessage({ type: 'review.updated', payload: state })
+  }
+
+  private postMessage(message: unknown) {
+    void this.view?.webview.postMessage(message)
+  }
+
+  private async handleMessage(message: WebviewMessage) {
+    if (message.type === 'ready') {
+      this.postMessage({ type: 'init', payload: buildViewState() })
+      return
+    }
+
+    if (message.type === 'action.refresh') {
+      await vscode.commands.executeCommand('aiCodeReview.refresh')
+      return
+    }
+
+    if (message.type === 'action.showReport') {
+      await vscode.commands.executeCommand('aiCodeReview.showReport')
+      return
+    }
+
+    if (message.type === 'action.openIssue') {
+      const issue = issues.get(message.issueId)
+      if (!issue) throw new Error('未找到问题项。')
+      await openIssue(issue)
+      return
+    }
+
+    if (message.type === 'action.copyFixPrompt') {
+      const issue = issues.get(message.issueId)
+      if (!issue) throw new Error('未找到问题项。')
+      await copyFixPrompt(issue)
+    }
+  }
+
+  private getHtml(webview: vscode.Webview): string {
+    const scriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'reviewView.js'),
+    )
+    const styleUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', 'reviewView.css'),
+    )
+    const nonce = String(Date.now())
+    return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';" />
+  <link rel="stylesheet" href="${styleUri}" />
+  <title>AI Code Review</title>
+</head>
+<body>
+  <div id="app"></div>
+  <script nonce="${nonce}" src="${scriptUri}"></script>
+</body>
+</html>`
+  }
+}
 
 export function activate(context: vscode.ExtensionContext) {
   output.appendLine('[activate] extension activated')
-  context.subscriptions.push(diagnostics, treeChange, output)
+  reviewWebviewProvider = new ReviewWebviewProvider(context.extensionUri)
+  context.subscriptions.push(diagnostics, output)
 
   context.subscriptions.push(
     vscode.commands.registerCommand('aiCodeReview.refresh', async () => {
-      const output = vscode.window.createOutputChannel('AI 代码审查')
-      output.appendLine('正在刷新审查结果...')
-      output.show(true)
+      const channel = vscode.window.createOutputChannel('AI 代码审查')
+      channel.appendLine('正在刷新审查结果...')
+      channel.show(true)
 
       try {
         const review = await loadReview()
-        output.appendLine(review.summary)
+        channel.appendLine(review.summary)
         for (const issue of review.issues) {
-          output.appendLine(`${issue.filePath}:${issue.line} ${issue.title}`)
+          channel.appendLine(`${issue.filePath}:${issue.line} ${issue.title}`)
         }
       } catch (error) {
         currentReview = null
         issues.clear()
         refreshDiagnostics([])
-        refreshView()
-        output.appendLine(String(error))
-        output.appendLine('暂未找到审查记录，请先触发一次 /review/run。')
+        reviewWebviewProvider?.postState(buildViewState())
+        channel.appendLine(String(error))
+        channel.appendLine('暂未找到审查记录，请先触发一次 /review/run。')
       }
     }),
   )
-
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -369,9 +462,9 @@ export function activate(context: vscode.ExtensionContext) {
   )
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(
+    vscode.window.registerWebviewViewProvider(
       'aiCodeReview.issues',
-      new IssueProvider(),
+      reviewWebviewProvider,
     ),
   )
 
@@ -382,118 +475,7 @@ export function activate(context: vscode.ExtensionContext) {
   )
 }
 
-class IssueProvider implements vscode.TreeDataProvider<TreeNode> {
-  readonly onDidChangeTreeData = treeChange.event
-
-  getTreeItem(element: TreeNode): vscode.TreeItem {
-    if (element.type === 'action') {
-      const item = new vscode.TreeItem(
-        element.label,
-        vscode.TreeItemCollapsibleState.None,
-      )
-      item.command = {
-        command: element.command,
-        title: element.label,
-        arguments: element.arguments,
-      }
-      return item
-    }
-
-    if (element.type === 'summary') {
-      const item = new vscode.TreeItem(
-        element.label,
-        vscode.TreeItemCollapsibleState.None,
-      )
-      item.description = element.description
-      item.tooltip = element.tooltip
-      return item
-    }
-
-    if (element.type === 'report') {
-      const item = new vscode.TreeItem(
-        element.label,
-        vscode.TreeItemCollapsibleState.None,
-      )
-      item.command = { command: element.command, title: element.label }
-      return item
-    }
-
-    const issue = element.issue
-    const item = new vscode.TreeItem(
-      issue.title,
-      vscode.TreeItemCollapsibleState.None,
-    )
-    item.description = `${issue.filePath}:${issue.line}`
-    item.tooltip = issue.evidence
-    item.contextValue = 'ai-code-review-issue'
-    item.command = {
-      command: 'aiCodeReview.openIssue',
-      title: 'Open Issue',
-      arguments: [{ issue }],
-    }
-    return item
-  }
-
-  getChildren(element?: TreeNode): vscode.ProviderResult<TreeNode[]> {
-    if (element) return []
-
-    const review = currentReview
-    const nodes: TreeNode[] = [
-      {
-        type: 'action',
-        label: '刷新审查结果',
-        command: 'aiCodeReview.refresh',
-      },
-      {
-        type: 'report',
-        label: '查看审查报告',
-        command: 'aiCodeReview.showReport',
-      },
-    ]
-
-    if (!review) {
-      nodes.push({
-        type: 'summary',
-        label: '暂无审查结果',
-        description: '后端产生审查记录后会自动显示，也可手动刷新。',
-      })
-      return nodes
-    }
-
-    nodes.push({
-      type: 'summary',
-      label: `状态：${review.status}`,
-      description: `${review.issues.length} 个问题`,
-      tooltip: `${review.summary}${review.errorMessage ? `\n${review.errorMessage}` : ''}`,
-    })
-
-    if (review.status === '排队中' || review.status === '审查中') {
-      nodes.push({
-        type: 'summary',
-        label: review.status,
-        description: '等待审查结果推送...',
-      })
-      return nodes
-    }
-
-    if (review.issues.length === 0) {
-      nodes.push({
-        type: 'summary',
-        label: review.status,
-        description: '未发现问题。',
-      })
-      return nodes
-    }
-
-    return [
-      ...nodes,
-      ...review.issues.map(issue => ({ type: 'issue' as const, issue })),
-    ]
-  }
-}
-
 export function deactivate() {
   sseAbortController?.abort()
   diagnostics.dispose()
-  treeChange.dispose()
 }
