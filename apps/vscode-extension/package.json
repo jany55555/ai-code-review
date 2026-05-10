@@ -13,7 +13,8 @@
     "onCommand:aiCodeReview.refresh",
     "onCommand:aiCodeReview.applyFix",
     "onCommand:aiCodeReview.openIssue",
-    "onCommand:aiCodeReview.showReport"
+    "onCommand:aiCodeReview.showReport",
+    "onCommand:aiCodeReview.copyFixPrompt"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -33,6 +34,10 @@
       {
         "command": "aiCodeReview.showReport",
         "title": "AI 代码审查: 查看报告"
+      },
+      {
+        "command": "aiCodeReview.copyFixPrompt",
+        "title": "AI 代码审查: 复制修复提示词"
       }
     ],
     "viewsContainers": {
@@ -63,6 +68,11 @@
           "command": "aiCodeReview.applyFix",
           "when": "view == aiCodeReview.issues && viewItem == ai-code-review-issue",
           "group": "inline@1"
+        },
+        {
+          "command": "aiCodeReview.copyFixPrompt",
+          "when": "view == aiCodeReview.issues && viewItem == ai-code-review-issue",
+          "group": "inline@2"
         }
       ],
       "view/title": [
