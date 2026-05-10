@@ -40,7 +40,8 @@ type WebviewMessage =
   | { type: 'action.openIssue'; issueId: string }
   | { type: 'action.copyFixPrompt'; issueId: string }
 
-const diagnostics = vscode.languages.createDiagnosticCollection('ai-code-review')
+const diagnostics =
+  vscode.languages.createDiagnosticCollection('ai-code-review')
 const issues = new Map<string, ReviewIssue>()
 const output = vscode.window.createOutputChannel('AI 代码审查')
 let currentReview: ReviewRun | null = null
@@ -87,7 +88,9 @@ const getRepoName = (): string => {
     output.appendLine(`[getRepoName] resolved repo=${repo}, folder=${folder}`)
     return repo
   } catch (error) {
-    output.appendLine(`[getRepoName] git remote lookup failed: ${String(error)}`)
+    output.appendLine(
+      `[getRepoName] git remote lookup failed: ${String(error)}`,
+    )
     return firstFolder?.name ?? 'demo-repo'
   }
 }
@@ -232,8 +235,9 @@ async function openIssue(issue: ReviewIssue) {
 
 const buildFixPrompt = (issue: ReviewIssue): string => {
   return [
-    '请修复以下代码问题，并返回 unified diff（不要返回解释）：',
+    '你是资深软件工程师。请直接修复这个 bug，并产出可直接应用的补丁。',
     '',
+    '【问题信息】',
     `- 文件：${issue.filePath}`,
     `- 行号：${issue.line}`,
     `- 问题标题：${issue.title}`,
@@ -241,11 +245,13 @@ const buildFixPrompt = (issue: ReviewIssue): string => {
     `- 证据：${issue.evidence}`,
     `- 修复建议：${issue.suggestion}`,
     '',
-    '要求：',
-    '1. 只修改必要代码，避免无关重构',
-    '2. 保持现有代码风格',
-    '3. 修复后不要引入新告警',
-    '4. 输出格式必须是可应用的 unified diff',
+    '【输出要求】',
+    '1. 先基于证据定位根因，再进行修复；禁止与问题无关的猜测性改动',
+    '2. 直接修复好 bug，优先最小改动，仅修改必要代码',
+    '3. 保持现有代码风格与命名，不做无关重构',
+    '4. 输出顺序：先给 1-3 行修复思路，再给 unified diff，最后给最小验证步骤',
+    '5. 修复后不引入新的编译或 lint 告警',
+    '6. diff 必须包含正确的文件路径与上下文，确保可应用；若信息不足，请先说明缺失信息',
   ].join('\n')
 }
 
