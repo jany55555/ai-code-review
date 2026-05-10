@@ -151,6 +151,19 @@ async function connectSse() {
   }
 }
 
+const normalizeIssue = (payload: unknown): ReviewIssue | null => {
+  if (!payload || typeof payload !== 'object') return null;
+  const maybeIssue = (payload as { issue?: unknown }).issue ?? payload;
+  if (!maybeIssue || typeof maybeIssue !== 'object') return null;
+
+  const filePath = (maybeIssue as { filePath?: unknown }).filePath;
+  const line = (maybeIssue as { line?: unknown }).line;
+  if (typeof filePath !== 'string' || filePath.length === 0) return null;
+  if (typeof line !== 'number' || !Number.isFinite(line)) return null;
+
+  return maybeIssue as ReviewIssue;
+};
+
 async function openIssue(issue: ReviewIssue) {
   output.appendLine(`[openIssue] start file=${issue.filePath} line=${issue.line}`);
   const uri = vscode.Uri.file(issue.filePath);
@@ -252,10 +265,13 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('aiCodeReview.openIssue', async (issue?: ReviewIssue) => {
+    vscode.commands.registerCommand('aiCodeReview.openIssue', async (payload?: unknown) => {
       try {
+        const issue = normalizeIssue(payload);
         if (!issue) {
-          output.appendLine('[aiCodeReview.openIssue] issue argument is empty');
+          output.appendLine(`[aiCodeReview.openIssue] invalid payload: ${JSON.stringify(payload)}`);
+          output.show(true);
+          await vscode.window.showWarningMessage('无法打开问题：缺少有效的文件路径或行号。');
           return;
         }
         await openIssue(issue);
