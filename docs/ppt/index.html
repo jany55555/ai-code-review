@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-themes="tokyo-night,dracula,catppuccin-mocha,nord,corporate-clean">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Code Review · 项目技术分享</title>
+<link rel="stylesheet" href="../../node_modules/.cache/fonts.css" onerror="this.remove()">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" id="theme-link" href="tokyo-night.css">
+<link rel="stylesheet" href="animations.css">
+<link rel="stylesheet" href="style.css">
+<style>
+/* ── inline base tokens (tokyo-night) ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1b26;color:#c0caf5;font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif}
+.deck{width:100%;height:100%;position:relative}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;padding:72px 96px;background:#1a1b26;overflow:hidden}
+.slide.is-active{display:flex}
+.notes{display:none}
+/* progress bar */
+#progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#7aa2f7,#bb9af7);transition:width .3s;z-index:999}
+/* kbd hint */
+.kbd-hint{position:fixed;bottom:12px;left:12px;font-size:11px;color:rgba(192,202,245,0.3);z-index:100;pointer-events:none;font-family:'JetBrains Mono',monospace}
+/* ── typography ── */
+.kicker{font-family:'JetBrains Mono',monospace;font-size:13px;color:#565f89;letter-spacing:.14em;text-transform:uppercase;margin:0 0 18px}
+.h1{font-size:clamp(44px,5.6vw,76px);line-height:1.12;letter-spacing:-.02em;margin:0 0 24px;color:#c0caf5}
+.h2{font-size:clamp(32px,3.6vw,48px);line-height:1.22;letter-spacing:-.01em;margin:0 0 28px;color:#c0caf5}
+.lede{font-size:20px;line-height:1.55;color:#a9b1d6}
+.mono{font-family:'JetBrains Mono',monospace;font-size:.9em;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,.08);color:#7aa2f7}
+.accent{color:#7aa2f7;font-weight:700}
+.accent-green{color:#9ece6a;font-weight:700}
+.accent-orange{color:#ff9e64;font-weight:700}
+.accent-purple{color:#bb9af7;font-weight:700}
+.dim{color:#a9b1d6;font-size:14px;line-height:1.6;margin:0}
+/* ── layout helpers ── */
+.mt-s{margin-top:10px}.mt-m{margin-top:20px}.mt-l{margin-top:32px}.mt-xl{margin-top:48px}
+.grid{display:grid;gap:20px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.stack>*+*{margin-top:12px}
+.tc{text-align:center}
+/* ── cards ── */
+.card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:22px 24px}
+.card-accent{border-top:3px solid #7aa2f7}
+.card-green{border-top:3px solid #9ece6a}
+.card-orange{border-top:3px solid #ff9e64}
+.card-purple{border-top:3px solid #bb9af7}
+.card-red{border-top:3px solid #f7768e}
+.card h4{margin:0 0 10px;font-size:17px;color:#c0caf5}
+.card p{color:#a9b1d6;font-size:14px;line-height:1.6;margin:0}
+/* ── agenda rows ── */
+.agenda-row{display:grid;grid-template-columns:48px 1fr auto;gap:16px;align-items:center;padding:14px 18px;border:1px solid rgba(255,255,255,.1);border-radius:10px;margin-bottom:10px;background:rgba(255,255,255,.03)}
+.agenda-row .num{font-family:'JetBrains Mono',monospace;font-size:14px;color:#7aa2f7;font-weight:700}
+.agenda-row .t{font-size:17px;font-weight:500;color:#c0caf5}
+.agenda-row .d{font-family:'JetBrains Mono',monospace;font-size:12px;color:#565f89}
+/* ── feature rows ── */
+.feature-row{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.feature-row:last-child{border-bottom:none}
+.feature-row .icon{font-size:28px;flex-shrink:0;line-height:1}
+.feature-row b{display:block;font-size:17px;margin-bottom:4px;color:#c0caf5}
+.feature-row .dim{font-size:14px;color:#a9b1d6;line-height:1.55;margin:0}
+/* ── code block ── */
+.code-block{background:#0d1117;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:20px 26px;font-family:'JetBrains Mono','SF Mono',monospace;font-size:14px;line-height:1.8;color:#e6edf3;white-space:pre-wrap;text-align:left}
+.code-block .comment{color:#8b949e}
+.code-block .cmd{color:#3fb950;font-weight:600}
+.code-block .flag{color:#f0883e}
+.code-block .key{color:#79c0ff}
+.code-block .val{color:#a5d6ff}
+.code-block .str{color:#a8d8a8}
+/* ── arch diagram ── */
+.arch-box{border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:14px 18px;background:rgba(255,255,255,.04);text-align:center}
+.arch-box .label{font-size:13px;font-family:'JetBrains Mono',monospace;color:#7aa2f7;margin-bottom:6px}
+.arch-box .desc{font-size:12px;color:#565f89;line-height:1.5}
+.arch-arrow{display:flex;align-items:center;justify-content:center;color:#565f89;font-size:20px;font-weight:300}
+/* ── speaker card ── */
+.speaker{display:flex;align-items:center;gap:12px;margin-top:32px}
+.speaker .av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#7aa2f7,#bb9af7)}
+.speaker b{display:block;font-size:16px;color:#c0caf5}
+.speaker span{font-size:13px;color:#565f89}
+/* ── deck footer ── */
+.deck-footer{position:absolute;bottom:28px;left:96px;right:96px;display:flex;justify-content:space-between;align-items:center;font-family:'JetBrains Mono',monospace;font-size:12px;color:#565f89}
+.slide-number::after{content:attr(data-current) " / " attr(data-total)}
+/* ── tag pills ── */
+.tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-family:'JetBrains Mono',monospace;margin:3px}
+.tag-blue{background:rgba(122,162,247,.15);color:#7aa2f7;border:1px solid rgba(122,162,247,.3)}
+.tag-green{background:rgba(158,206,106,.15);color:#9ece6a;border:1px solid rgba(158,206,106,.3)}
+.tag-orange{background:rgba(255,158,100,.15);color:#ff9e64;border:1px solid rgba(255,158,100,.3)}
+.tag-purple{background:rgba(187,154,247,.15);color:#bb9af7;border:1px solid rgba(187,154,247,.3)}
+/* ── flow steps ── */
+.flow{display:flex;align-items:center;gap:0;margin-top:28px}
+.flow-step{flex:1;text-align:center;padding:16px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;position:relative}
+.flow-step .icon{font-size:24px;margin-bottom:8px}
+.flow-step .name{font-size:13px;font-weight:600;color:#c0caf5;margin-bottom:4px}
+.flow-step .sub{font-size:11px;color:#565f89;font-family:'JetBrains Mono',monospace}
+.flow-arrow{color:#565f89;font-size:18px;padding:0 6px;flex-shrink:0}
+/* ── stat cards ── */
+.stat-card{text-align:center;padding:24px 16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px}
+.stat-card .num{font-size:42px;font-weight:800;line-height:1;margin-bottom:8px}
+.stat-card .label{font-size:13px;color:#a9b1d6}
+/* ── gradient text ── */
+.grad{background:linear-gradient(135deg,#7aa2f7,#bb9af7);-webkit-background-clip:text;background-clip:text;color:transparent}
+.grad-green{background:linear-gradient(135deg,#9ece6a,#73daca);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* ── anim ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.anim-fade-up{animation:fadeUp .6s ease both}
+</style>
+</head>
+<body class="tpl-presenter-mode-reveal">
+<div id="progress-bar" style="width:10%"></div>
+<div class="deck">
+
+  <!-- ===== 1. COVER ===== -->
+  <section class="slide is-active" data-title="封面">
+    <p class="kicker">ai-code-review · 技术分享</p>
+    <h1 class="h1 anim-fade-up">让 AI 成为你的<br><span class="grad">代码审查员</span></h1>
+    <p class="lede mt-m">一个端到端的 AI 代码审查系统 · 从 git commit 到 VS Code 侧边栏</p>
+    <div style="margin-top:28px;display:flex;gap:10px;flex-wrap:wrap">
+      <span class="tag tag-blue">TypeScript</span>
+      <span class="tag tag-green">Fastify</span>
+      <span class="tag tag-purple">Claude / GPT / Gemini</span>
+      <span class="tag tag-orange">VS Code Extension</span>
+      <span class="tag tag-blue">pnpm Monorepo</span>
+    </div>
+    <div class="speaker">
+      <div class="av"></div>
+      <div><b>ai-code-review</b><span>技术分享 · ~30 min</span></div>
+    </div>
+    <div class="deck-footer">
+      <span class="mono">#AI #CodeReview #DevTools</span>
+      <span class="slide-number" data-current="1" data-total="10"></span>
+    </div>
+    <aside class="notes">
+      <p>大家好，今天给大家分享一个我做的项目——<strong>ai-code-review</strong>，一个让 AI 自动帮你做代码审查的工具。</p>
+      <p>先说一下背景。我们平时写完代码，要么等同事 review，要么自己反复看。但同事不一定有时间，自己看又容易漏掉问题。所以我想——<strong>能不能让 AI 在每次 commit 之后自动帮我扫一遍代码</strong>，把潜在的 bug、安全问题、空指针这些东西提前揪出来？</p>
+      <p>这个项目就是这个想法的实现。今天分享大概 30 分钟，我会从<em>为什么做</em>、<em>怎么设计</em>、<em>核心模块</em>、<em>触发机制</em>到<em>实际效果</em>，完整走一遍。</p>
+      <p>有问题随时打断，我们开始。</p>
+    </aside>
+  </section>
+
+  <!-- ===== 2. AGENDA ===== -->
+  <section class="slide" data-title="议程">
+    <p class="kicker">agenda</p>
+    <h2 class="h2">今天要讲的 <span class="accent">6 件事</span></h2>
+    <div class="stack mt-l">
+      <div class="agenda-row"><span class="num">01</span><span class="t">为什么需要 AI 代码审查</span><span class="d">~3min</span></div>
+      <div class="agenda-row"><span class="num">02</span><span class="t">项目整体架构设计</span><span class="d">~5min</span></div>
+      <div class="agenda-row"><span class="num">03</span><span class="t">核心模块拆解</span><span class="d">~8min</span></div>
+      <div class="agenda-row"><span class="num">04</span><span class="t">三种触发机制</span><span class="d">~5min</span></div>
+      <div class="agenda-row"><span class="num">05</span><span class="t">VS Code 插件 · 开发者体验</span><span class="d">~5min</span></div>
+      <div class="agenda-row"><span class="num">06</span><span class="t">总结 + Q&amp;A</span><span class="d">~4min</span></div>
+    </div>
+    <aside class="notes">
+      <p>先过一下今天的议程，一共 6 个部分。</p>
+      <p>第一部分，我会先说<strong>为什么要做这个</strong>——不是为了炫技，而是真实的开发痛点。</p>
+      <p>第二部分讲<em>整体架构</em>，这个项目用了 pnpm monorepo，分了好几个 package，我会解释为什么这么拆。</p>
+      <p>第三部分是<strong>核心模块拆解</strong>，包括 LLM 客户端、审查引擎、存储层，这是技术含量最高的部分。</p>
+      <p>第四部分讲三种触发方式——手动、post-commit hook、GitHub Actions，每种适合不同场景。</p>
+      <p>第五部分展示 VS Code 插件的效果，这是最直观的部分。最后收尾答疑。好，进入第一部分。</p>
+    </aside>
+  </section>
+
+  <!-- ===== 3. WHY ===== -->
+  <section class="slide" data-title="为什么做">
+    <p class="kicker">// part 01 · problem</p>
+    <h2 class="h2">代码审查的<span class="accent">三个痛点</span></h2>
+    <div class="grid g3 mt-l">
+      <div class="card card-red">
+        <h4>⏰ 等待成本高</h4>
+        <p>同事 review 排队，PR 挂着等 2 天，节奏全被打断。</p>
+      </div>
+      <div class="card card-orange">
+        <h4>👁️ 人工容易漏</h4>
+        <p>空指针、SQL 注入、边界条件——疲劳状态下很难每次都抓到。</p>
+      </div>
+      <div class="card card-accent">
+        <h4>🔁 反馈周期长</h4>
+        <p>问题在 PR 阶段才发现，改起来成本已经很高了。</p>
+      </div>
+    </div>
+    <div class="card mt-l" style="border-left:4px solid #9ece6a;background:rgba(158,206,106,.06)">
+      <p style="font-size:16px;color:#c0caf5">💡 <strong>解法</strong>：在 <span class="mono">git commit</span> 之后立刻触发 AI 审查，<strong>把问题消灭在本地</strong>，不等 PR，不等同事。</p>
+    </div>
+    <aside class="notes">
+      <p>先说为什么要做这个。代码审查这件事，我总结了三个核心痛点。</p>
+      <p>第一个，<strong>等待成本高</strong>。你提了 PR，同事可能在忙别的，等两天才给你 review，这两天你的思路早就断了，改起来很痛苦。</p>
+      <p>第二个，<strong>人工容易漏</strong>。空指针、SQL 注入、边界条件——这些问题在疲劳状态下很难每次都抓到。不是同事不认真，是人本来就不擅长这种机械性的扫描工作。</p>
+      <p>第三个，<strong>反馈周期长</strong>。问题在 PR 阶段才发现，这时候代码已经写完了，改起来成本很高，有时候还要推翻重来。</p>
+      <p>所以我的解法是——<em>在 git commit 之后立刻触发 AI 审查</em>，把问题消灭在本地，不等 PR，不等同事。接下来我讲怎么实现的。</p>
+    </aside>
+  </section>
+
+  <!-- ===== 4. ARCHITECTURE ===== -->
+  <section class="slide" data-title="架构设计">
+    <p class="kicker">// part 02 · architecture</p>
+    <h2 class="h2">pnpm Monorepo · <span class="accent">5 个 Package</span></h2>
+    <div class="grid g3 mt-l" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="arch-box"><div class="label">apps/api</div><div class="desc">Fastify HTTP 服务<br>REST + SSE · 端口 8787</div></div>
+      <div class="arch-box" style="border-color:rgba(187,154,247,.3)"><div class="label" style="color:#bb9af7">apps/vscode-extension</div><div class="desc">VS Code 插件<br>React Webview + Diagnostics</div></div>
+      <div class="arch-box" style="border-color:rgba(158,206,106,.3)"><div class="label" style="color:#9ece6a">packages/review-engine</div><div class="desc">核心审查引擎<br>diff 过滤 + 并行调用</div></div>
+    </div>
+    <div class="grid g2 mt-m" style="grid-template-columns:1fr 1fr">
+      <div class="arch-box" style="border-color:rgba(255,158,100,.3)"><div class="label" style="color:#ff9e64">packages/llm-client</div><div class="desc">多 LLM 提供商封装<br>Claude · GPT-4o · Gemini</div></div>
+      <div class="arch-box"><div class="label">packages/contracts + storage</div><div class="desc">共享类型定义 + 内存存储层</div></div>
+    </div>
+    <div class="flow mt-l">
+      <div class="flow-step"><div class="icon">📝</div><div class="name">git commit</div><div class="sub">触发入口</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="icon">⚙️</div><div class="name">review-engine</div><div class="sub">diff 解析</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="icon">🤖</div><div class="name">llm-client</div><div class="sub">AI 审查</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="icon">📡</div><div class="name">api / SSE</div><div class="sub">实时推送</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="icon">🖥️</div><div class="name">VS Code</div><div class="sub">展示结果</div></div>
+    </div>
+    <aside class="notes">
+      <p>来看架构设计。整个项目用 pnpm monorepo 组织，分成 5 个 package。</p>
+      <p>上面三个是核心：<strong>apps/api</strong> 是 Fastify 后端服务，提供 REST 接口和 SSE 实时推送；<strong>apps/vscode-extension</strong> 是 VS Code 插件，用 React 做侧边栏 UI；<strong>packages/review-engine</strong> 是审查引擎，负责 diff 过滤和并行调用 LLM。</p>
+      <p>下面两个是支撑层：<strong>llm-client</strong> 封装了三个 LLM 提供商，对外暴露统一接口；<strong>contracts</strong> 定义共享类型，<strong>storage</strong> 是内存存储层。</p>
+      <p>整个数据流很清晰——git commit 触发，review-engine 解析 diff，llm-client 调 AI，结果通过 SSE 推送到 VS Code 插件展示。<em>每个环节职责单一，可以独立替换</em>。</p>
+    </aside>
+  </section>
+
+  <!-- ===== 5. CORE MODULES ===== -->
+  <section class="slide" data-title="核心模块">
+    <p class="kicker">// part 03 · core modules</p>
+    <h2 class="h2">审查引擎 · <span class="accent">三步走</span></h2>
+    <div class="grid g3 mt-l">
+      <div class="card card-accent">
+        <h4>① filterDiff</h4>
+        <p>过滤掉图片、lock 文件、CSS、自动生成代码——只把<strong>有意义的 diff</strong> 送给 LLM，节省 token。</p>
+      </div>
+      <div class="card card-green">
+        <h4>② splitDiffByFile</h4>
+        <p>按文件拆分 diff，<strong>并行</strong>调用 LLM，每个文件独立审查，互不干扰，速度快。</p>
+      </div>
+      <div class="card card-orange">
+        <h4>③ runReview</h4>
+        <p>编排整个流程，支持<strong>进度回调</strong>，状态机：排队中 → 审查中 → 通过 / 有问题 / 失败。</p>
+      </div>
+    </div>
+    <div class="code-block mt-l"><span class="comment">// Prompt 工程：要求模型返回严格 JSON</span>
+<span class="key">const</span> <span class="val">prompt</span> = <span class="str">`分析以下代码 diff，返回 JSON：
+{ "summary": "...", "issues": [{ "severity": "error|warning|info",
+  "file": "...", "line": N, "message": "..." }] }`</span></div>
+    <aside class="notes">
+      <p>来看审查引擎的核心逻辑，分三步。</p>
+      <p>第一步，<strong>filterDiff</strong>。不是所有文件都需要 AI 看——图片、lock 文件、CSS、自动生成的代码，送给 LLM 是浪费 token。这一步把这些过滤掉，只保留有意义的代码变更。</p>
+      <p>第二步，<strong>splitDiffByFile</strong>。把 diff 按文件拆分，然后<em>并行</em>调用 LLM。为什么并行？因为一次 commit 可能改了 10 个文件，串行调用太慢，并行可以把延迟压到单个文件的审查时间。</p>
+      <p>第三步，<strong>runReview</strong> 编排整个流程，支持进度回调，这样前端可以实时显示"正在审查第 3/10 个文件"。</p>
+      <p>Prompt 工程这里有个关键设计——<strong>要求模型返回严格 JSON</strong>，包含 summary 和 issues 数组，每个 issue 有 severity、file、line、message。这样后端可以直接解析，不需要再做文本提取。</p>
+    </aside>
+  </section>
+
+  <!-- ===== 6. LLM CLIENT ===== -->
+  <section class="slide" data-title="多 LLM 支持">
+    <p class="kicker">// part 03 · llm-client</p>
+    <h2 class="h2">一套接口，<span class="accent">三个 LLM</span></h2>
+    <div class="grid g3 mt-l">
+      <div class="card card-accent" style="text-align:center">
+        <h4 style="font-size:22px">🤖 Claude</h4>
+        <p class="mono" style="font-size:12px;margin-top:8px">claude-sonnet-4-6</p>
+        <p style="margin-top:10px">Anthropic · 默认首选<br>代码理解能力强</p>
+      </div>
+      <div class="card card-green" style="text-align:center">
+        <h4 style="font-size:22px">💬 GPT-4o</h4>
+        <p class="mono" style="font-size:12px;margin-top:8px">gpt-4o</p>
+        <p style="margin-top:10px">OpenAI · 备选方案<br>生态成熟</p>
+      </div>
+      <div class="card card-orange" style="text-align:center">
+        <h4 style="font-size:22px">✨ Gemini</h4>
+        <p class="mono" style="font-size:12px;margin-top:8px">gemini-1.5-pro</p>
+        <p style="margin-top:10px">Google · 长上下文<br>大文件 diff 友好</p>
+      </div>
+    </div>
+    <div class="card mt-l" style="border-left:4px solid #7aa2f7;background:rgba(122,162,247,.06)">
+      <p style="font-size:15px;color:#c0caf5"><strong>MultiProviderReviewClient</strong> 统一封装，切换 provider 只需改一个环境变量。输出语言：<span class="accent">简体中文</span>，方便国内团队直接使用。</p>
+    </div>
+    <aside class="notes">
+      <p>llm-client 这个模块我设计了一个<strong>统一接口</strong>，支持三个 LLM 提供商。</p>
+      <p>默认用 Claude，代码理解能力在这三个里面是最强的，特别是对复杂逻辑的分析。GPT-4o 作为备选，生态最成熟，很多团队已经有 OpenAI 的 API key。Gemini 的优势是<em>超长上下文</em>，如果一次 commit 改了很多文件，Gemini 处理起来更稳。</p>
+      <p>切换 provider 只需要改一个环境变量，不需要改代码。这个设计让团队可以根据自己的情况灵活选择。</p>
+      <p>还有一个细节——<strong>输出语言强制设为简体中文</strong>。这样审查结果直接给国内团队看，不需要再翻译，降低使用门槛。</p>
+    </aside>
+  </section>
+
+  <!-- ===== 7. TRIGGERS ===== -->
+  <section class="slide" data-title="触发机制">
+    <p class="kicker">// part 04 · triggers</p>
+    <h2 class="h2">三种触发方式，<span class="accent">覆盖全场景</span></h2>
+    <div class="stack mt-l">
+      <div class="feature-row">
+        <div class="icon">🔧</div>
+        <div>
+          <b>① 手动触发 · POST /review/run</b>
+          <p class="dim">直接调 API，适合 CI 脚本或临时审查。传入 repo 名 + diff 内容，立即返回 run ID，通过 SSE 监听进度。</p>
+        </div>
+      </div>
+      <div class="feature-row">
+        <div class="icon">⚡</div>
+        <div>
+          <b>② git post-commit hook · 本地自动</b>
+          <p class="dim">每次 <span class="mono">git commit</span> 后，<span class="mono">.githooks/post-commit</span> 在后台异步调用 API，<strong>不阻塞提交</strong>，开发者无感知。</p>
+        </div>
+      </div>
+      <div class="feature-row">
+        <div class="icon">🚀</div>
+        <div>
+          <b>③ GitHub Actions · PR 自动审查</b>
+          <p class="dim">PR 打开或更新时，<span class="mono">.github/workflows/pr-review.yml</span> 自动触发，审查结果可以作为 PR check 展示。</p>
+        </div>
+      </div>
+    </div>
+    <aside class="notes">
+      <p>触发机制是这个项目的一个亮点，我设计了三种方式，覆盖不同场景。</p>
+      <p>第一种，<strong>手动触发</strong>。直接调 POST /review/run 接口，适合 CI 脚本或者你想临时审查某段代码。接口是异步的，立即返回 run ID，然后通过 SSE 监听进度。</p>
+      <p>第二种，<strong>git post-commit hook</strong>。这是我最喜欢的方式。每次 git commit 之后，hook 脚本在后台异步调用 API，<em>完全不阻塞提交</em>，开发者感知不到。等你写下一行代码的时候，审查结果已经出来了，VS Code 侧边栏自动更新。</p>
+      <p>第三种，<strong>GitHub Actions</strong>。PR 打开或更新时自动触发，审查结果可以作为 PR check 展示，团队 review 之前就能看到 AI 的意见。</p>
+      <p>三种方式可以同时用，也可以只选一种，根据团队习惯来。</p>
+    </aside>
+  </section>
+
+  <!-- ===== 8. API DESIGN ===== -->
+  <section class="slide" data-title="API 设计">
+    <p class="kicker">// part 04 · api</p>
+    <h2 class="h2">REST + SSE · <span class="accent">实时推送</span></h2>
+    <div class="grid g2 mt-l">
+      <div>
+        <div class="code-block"><span class="comment"># 触发审查</span>
+<span class="cmd">POST</span>  <span class="val">/review/run</span>
+
+<span class="comment"># 获取最新结果</span>
+<span class="cmd">GET</span>   <span class="val">/review/latest/:repo</span>
+
+<span class="comment"># SSE 实时进度流</span>
+<span class="cmd">GET</span>   <span class="val">/review/stream/:repo</span>
+
+<span class="comment"># 历史事件</span>
+<span class="cmd">GET</span>   <span class="val">/review/events/:repo</span>
+
+<span class="comment"># 用户反馈</span>
+<span class="cmd">POST</span>  <span class="val">/feedback</span></div>
+      </div>
+      <div class="stack">
+        <div class="card card-accent">
+          <h4>ReviewStatus 状态机</h4>
+          <p><span class="tag tag-blue">queued</span> → <span class="tag tag-orange">reviewing</span> → <span class="tag tag-green">passed</span> / <span class="tag tag-purple">has_issues</span> / <span class="tag tag-blue" style="border-color:rgba(247,118,142,.3);color:#f7768e;background:rgba(247,118,142,.1)">failed</span></p>
+        </div>
+        <div class="card card-green">
+          <h4>问题严重级别</h4>
+          <p><span class="tag" style="background:rgba(247,118,142,.15);color:#f7768e;border-color:rgba(247,118,142,.3)">error</span> <span class="tag tag-orange">warning</span> <span class="tag tag-blue">info</span></p>
+        </div>
+        <div class="card card-purple">
+          <h4>用户反馈</h4>
+          <p>接受 / 忽略 / 需要更多上下文 · 持续优化 Prompt</p>
+        </div>
+      </div>
+    </div>
+    <aside class="notes">
+      <p>API 设计这里有几个值得说的点。</p>
+      <p>接口设计很简洁，5 个端点覆盖所有场景。最关键的是 <strong>SSE 实时推送</strong>——GET /review/stream/:repo 是一个长连接，审查进度实时推送给客户端，VS Code 插件订阅这个流，所以你能看到"正在审查第 3 个文件"这样的实时状态。</p>
+      <p>状态机设计也很清晰：<em>排队中 → 审查中 → 通过 / 有问题 / 失败</em>。这个状态在 VS Code 侧边栏有对应的 UI 展示。</p>
+      <p>还有一个 <strong>/feedback 接口</strong>，让用户对每个 issue 给反馈——接受、忽略、还是需要更多上下文。这个数据可以用来持续优化 Prompt，让 AI 越来越准。</p>
+    </aside>
+  </section>
+
+  <!-- ===== 9. VSCODE EXTENSION ===== -->
+  <section class="slide" data-title="VS Code 插件">
+    <p class="kicker">// part 05 · vscode extension</p>
+    <h2 class="h2">开发者体验 · <span class="accent">零打断</span></h2>
+    <div class="grid g2 mt-l">
+      <div class="stack">
+        <div class="feature-row">
+          <div class="icon">📋</div>
+          <div>
+            <b>侧边栏 Webview（React）</b>
+            <p class="dim">审查概览 + 问题列表，支持按严重级别和关键词筛选，实时 SSE 更新。</p>
+          </div>
+        </div>
+        <div class="feature-row">
+          <div class="icon">🔴</div>
+          <div>
+            <b>VS Code Diagnostics 集成</b>
+            <p class="dim">问题直接标注在编辑器对应行，和 ESLint 报错一样的体验，点击跳转。</p>
+          </div>
+        </div>
+        <div class="feature-row">
+          <div class="icon">🤖</div>
+          <div>
+            <b>复制修复提示词</b>
+            <p class="dim">一键生成结构化 Prompt，直接粘贴给 AI 修复 bug，<strong>闭环工作流</strong>。</p>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="background:rgba(0,0,0,.3);border-color:rgba(255,255,255,.08);padding:20px">
+        <div style="background:#0d1117;border-radius:8px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7">
+          <div style="color:#f7768e">● error  src/api/user.ts:42</div>
+          <div style="color:#a9b1d6;padding-left:12px">可能的空指针：user.profile 未做<br>null 检查即直接访问属性</div>
+          <div style="color:#ff9e64;margin-top:8px">⚠ warning  src/db/query.ts:18</div>
+          <div style="color:#a9b1d6;padding-left:12px">SQL 拼接存在注入风险，<br>建议使用参数化查询</div>
+          <div style="color:#7aa2f7;margin-top:8px">ℹ info  src/utils/format.ts:7</div>
+          <div style="color:#a9b1d6;padding-left:12px">可以用 Array.at(-1) 替代<br>arr[arr.length - 1]</div>
+        </div>
+      </div>
+    </div>
+    <aside class="notes">
+      <p>VS Code 插件是整个系统的"最后一公里"，也是开发者最直接感受到的部分。</p>
+      <p>侧边栏用 React 做的 Webview，展示审查概览和问题列表。支持按严重级别筛选——只看 error、只看 warning——还支持关键词搜索。通过 SSE 实时更新，不需要手动刷新。</p>
+      <p>更重要的是 <strong>VS Code Diagnostics 集成</strong>。问题直接标注在编辑器对应行，就像 ESLint 报错一样，红色波浪线，鼠标悬停看详情，点击跳转到问题位置。这个体验对开发者来说是最自然的。</p>
+      <p>还有一个我很喜欢的功能——<em>复制修复提示词</em>。点一下，自动生成一段结构化 Prompt，包含问题描述、文件路径、行号、上下文代码，直接粘贴给 AI 就能修复。这样从发现问题到修复，整个工作流都在 VS Code 里完成，不需要切换工具。</p>
+    </aside>
+  </section>
+
+  <!-- ===== 10. CLOSING ===== -->
+  <section class="slide" data-title="总结">
+    <p class="kicker">// part 06 · summary</p>
+    <h2 class="h2">一句话总结</h2>
+    <div class="card mt-l" style="border-left:4px solid #7aa2f7;background:rgba(122,162,247,.06);padding:28px 32px">
+      <p style="font-size:22px;line-height:1.7;color:#c0caf5"><strong>ai-code-review</strong> 把 AI 代码审查嵌入到 <span class="accent">git commit → VS Code</span> 的工作流里，让每个开发者都有一个<span class="accent-green">不知疲倦的 AI 审查员</span>，在问题进入 PR 之前就把它消灭。</p>
+    </div>
+    <div class="grid g4 mt-l">
+      <div class="stat-card"><div class="num grad">5</div><div class="label">个 Package</div></div>
+      <div class="stat-card"><div class="num" style="color:#9ece6a">3</div><div class="label">个 LLM 提供商</div></div>
+      <div class="stat-card"><div class="num" style="color:#ff9e64">3</div><div class="label">种触发方式</div></div>
+      <div class="stat-card"><div class="num" style="color:#bb9af7">∞</div><div class="label">次自动审查</div></div>
+    </div>
+    <p class="lede mt-l tc">感谢收听 · <span class="mono">Q&amp;A</span></p>
+    <div class="deck-footer">
+      <span class="mono">github.com/ai-code-review</span>
+      <span class="slide-number" data-current="10" data-total="10"></span>
+    </div>
+    <aside class="notes">
+      <p>好，最后做个总结。</p>
+      <p>用一句话概括这个项目：<strong>把 AI 代码审查嵌入到 git commit → VS Code 的工作流里</strong>，让每个开发者都有一个不知疲倦的 AI 审查员，在问题进入 PR 之前就把它消灭。</p>
+      <p>几个关键数字：5 个 Package 的 monorepo 架构，3 个 LLM 提供商可选，3 种触发方式覆盖全场景，理论上可以无限次自动审查。</p>
+      <p>这个项目对我来说最大的收获不是技术本身，而是<em>把 AI 能力真正融入开发工作流</em>的思路——不是做一个独立的 AI 工具，而是让 AI 在你已有的工作流里悄悄工作，不打断你，但一直在帮你。</p>
+      <p>好，今天就分享到这里，有问题现在开始。谢谢大家。</p>
+    </aside>
+  </section>
+
+</div>
+<div class="kbd-hint">S 演讲者视图 · T 切换主题 · ← → 翻页 · F 全屏 · O 总览</div>
+<script>
+// Minimal runtime: keyboard nav + progress + presenter mode stub
+(function(){
+  const slides = document.querySelectorAll('.slide');
+  const bar = document.getElementById('progress-bar');
+  let cur = 0;
+  const total = slides.length;
+
+  // Check ?preview=N
+  const params = new URLSearchParams(location.search);
+  const previewIdx = params.has('preview') ? parseInt(params.get('preview')) - 1 : -1;
+
+  function goto(n){
+    if(n < 0) n = 0;
+    if(n >= total) n = total - 1;
+    slides[cur].classList.remove('is-active');
+    cur = n;
+    slides[cur].classList.add('is-active');
+    bar.style.width = ((cur+1)/total*100) + '%';
+    location.hash = '/' + (cur+1);
+    // sync presenter
+    if(window.presenterWin && !window.presenterWin.closed){
+      window.presenterWin.postMessage({type:'goto',idx:cur},'*');
+    }
+    bc.postMessage({type:'goto',idx:cur});
+  }
+
+  // BroadcastChannel sync
+  const bc = new BroadcastChannel('ai-code-review-deck');
+  bc.onmessage = e => { if(e.data.type==='goto') goto(e.data.idx); };
+
+  // Init
+  if(previewIdx >= 0){
+    slides[previewIdx].classList.add('is-active');
+    bar.style.display='none';
+    document.querySelector('.kbd-hint').style.display='none';
+    window.addEventListener('message', e => {
+      if(e.data.type==='preview-goto') goto(e.data.idx);
+    });
+    return;
+  }
+
+  const hash = parseInt((location.hash||'').replace('#/','')) - 1;
+  goto(isNaN(hash) ? 0 : hash);
+
+  document.addEventListener('keydown', e => {
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown') goto(cur+1);
+    else if(e.key==='ArrowLeft'||e.key==='PageUp') goto(cur-1);
+    else if(e.key==='Home') goto(0);
+    else if(e.key==='End') goto(total-1);
+    else if(e.key==='f'||e.key==='F'){
+      if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+    else if(e.key==='s'||e.key==='S') openPresenter();
+    else if(e.key==='Escape') closeOverlays();
+    else if(e.key==='o'||e.key==='O') toggleOverview();
+  });
+
+  // Overview
+  let overviewEl = null;
+  function toggleOverview(){
+    if(overviewEl){ closeOverlays(); return; }
+    overviewEl = document.createElement('div');
+    overviewEl.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;padding:32px;overflow-y:auto';
+    slides.forEach((s,i)=>{
+      const wrap = document.createElement('div');
+      wrap.style.cssText='cursor:pointer;border:2px solid '+(i===cur?'#7aa2f7':'rgba(255,255,255,.15)')+';border-radius:8px;overflow:hidden;aspect-ratio:16/9;position:relative;background:#1a1b26';
+      const label = document.createElement('div');
+      label.style.cssText='position:absolute;bottom:6px;right:8px;font-size:11px;color:#565f89;font-family:monospace';
+      label.textContent = (i+1)+'/'+total;
+      const title = document.createElement('div');
+      title.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:13px;color:#c0caf5;text-align:center;padding:8px';
+      title.textContent = s.dataset.title || ('Slide '+(i+1));
+      wrap.appendChild(title); wrap.appendChild(label);
+      wrap.onclick = ()=>{ goto(i); closeOverlays(); };
+      overviewEl.appendChild(wrap);
+    });
+    document.body.appendChild(overviewEl);
+  }
+
+  function closeOverlays(){
+    if(overviewEl){ overviewEl.remove(); overviewEl=null; }
+  }
+
+  // Presenter window
+  let presenterWin = null;
+  window.presenterWin = null;
+  function openPresenter(){
+    const url = location.href.split('#')[0] + '?presenter=1';
+    presenterWin = window.open(url,'ai-code-review-presenter','width=1200,height=700');
+    window.presenterWin = presenterWin;
+  }
+
+  // Presenter mode
+  if(params.has('presenter')){
+    document.body.style.background='#0d1117';
+    renderPresenter();
+    return;
+  }
+
+  function renderPresenter(){
+    document.querySelector('.deck').style.display='none';
+    bar.style.display='none';
+    document.querySelector('.kbd-hint').style.display='none';
+    const allNotes = Array.from(slides).map(s=>{
+      const n = s.querySelector('.notes, aside.notes');
+      return n ? n.innerHTML : '<p>（无逐字稿）</p>';
+    });
+    const allTitles = Array.from(slides).map(s=>s.dataset.title||'');
+    let pIdx = 0;
+    const deckUrl = location.href.split('?')[0];
+
+    const ui = document.createElement('div');
+    ui.style.cssText='position:fixed;inset:0;background:#0d1117;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;padding:12px;font-family:"Noto Sans SC",sans-serif';
+    ui.innerHTML=`
+      <div style="background:#161b22;border-radius:10px;overflow:hidden;display:flex;flex-direction:column">
+        <div style="padding:8px 14px;background:#21262d;font-size:12px;color:#7aa2f7;font-weight:600;display:flex;align-items:center;gap:6px;cursor:move" id="hdr-cur">
+          <span style="width:10px;height:10px;border-radius:50%;background:#58a6ff;display:inline-block"></span> CURRENT
+        </div>
+        <iframe id="iframe-cur" src="${deckUrl}?preview=1" style="flex:1;border:none;width:100%;height:100%"></iframe>
+      </div>
+      <div style="background:#161b22;border-radius:10px;overflow:hidden;display:flex;flex-direction:column">
+        <div style="padding:8px 14px;background:#21262d;font-size:12px;color:#bb9af7;font-weight:600;display:flex;align-items:center;gap:6px" id="hdr-next">
+          <span style="width:10px;height:10px;border-radius:50%;background:#bb9af7;display:inline-block"></span> NEXT
+        </div>
+        <iframe id="iframe-next" src="${deckUrl}?preview=2" style="flex:1;border:none;width:100%;height:100%"></iframe>
+      </div>
+      <div style="background:#161b22;border-radius:10px;overflow:hidden;display:flex;flex-direction:column">
+        <div style="padding:8px 14px;background:#21262d;font-size:12px;color:#f0883e;font-weight:600" id="hdr-script">
+          <span style="width:10px;height:10px;border-radius:50%;background:#f0883e;display:inline-block"></span> SPEAKER SCRIPT
+        </div>
+        <div id="notes-body" style="flex:1;overflow-y:auto;padding:16px 20px;font-size:17px;line-height:1.8;color:#c0caf5"></div>
+      </div>
+      <div style="background:#161b22;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+        <div style="padding:8px 14px;background:#21262d;font-size:12px;color:#3fb950;font-weight:600;width:100%;display:flex;align-items:center;gap:6px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#3fb950;display:inline-block"></span> TIMER
+        </div>
+        <div id="timer" style="font-size:52px;font-weight:800;color:#c0caf5;font-family:'JetBrains Mono',monospace;letter-spacing:.05em">00:00</div>
+        <div id="slide-counter" style="font-size:18px;color:#565f89;font-family:'JetBrains Mono',monospace">1 / ${total}</div>
+        <div style="display:flex;gap:10px">
+          <button onclick="pNav(-1)" style="padding:8px 20px;background:#21262d;border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#c0caf5;cursor:pointer;font-size:14px">← Prev</button>
+          <button onclick="pNav(1)" style="padding:8px 20px;background:#21262d;border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#c0caf5;cursor:pointer;font-size:14px">Next →</button>
+          <button onclick="resetTimer()" style="padding:8px 20px;background:#21262d;border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#565f89;cursor:pointer;font-size:14px">R Reset</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(ui);
+
+    function updatePresenter(){
+      document.getElementById('notes-body').innerHTML = allNotes[pIdx];
+      document.getElementById('slide-counter').textContent = (pIdx+1)+' / '+total;
+      document.getElementById('iframe-cur').contentWindow.postMessage({type:'preview-goto',idx:pIdx},'*');
+      const nextIdx = Math.min(pIdx+1, total-1);
+      document.getElementById('iframe-next').contentWindow.postMessage({type:'preview-goto',idx:nextIdx},'*');
+    }
+    updatePresenter();
+
+    window.pNav = function(d){
+      pIdx = Math.max(0, Math.min(total-1, pIdx+d));
+      updatePresenter();
+      bc.postMessage({type:'goto',idx:pIdx});
+    };
+    bc.onmessage = e => { if(e.data.type==='goto'){ pIdx=e.data.idx; updatePresenter(); } };
+    document.addEventListener('keydown', e=>{
+      if(e.key==='ArrowRight'||e.key===' ') pNav(1);
+      else if(e.key==='ArrowLeft') pNav(-1);
+    });
+
+    // Timer
+    let secs=0, timerInterval=null;
+    timerInterval = setInterval(()=>{
+      secs++;
+      const m=String(Math.floor(secs/60)).padStart(2,'0');
+      const s=String(secs%60).padStart(2,'0');
+      document.getElementById('timer').textContent=m+':'+s;
+    },1000);
+    window.resetTimer = ()=>{ secs=0; };
+  }
+})();
+</script>
+</body>
+</html>
