@@ -12,7 +12,8 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "setup:hooks": "git config --local core.hooksPath .githooks && chmod +x .githooks/post-commit scripts/review-post-commit.sh"
+    "setup:hooks": "git config --local core.hooksPath .githooks && chmod +x .githooks/post-commit scripts/review-post-commit.sh",
+    "prepare": "pnpm run setup:hooks"
   },
   "devDependencies": {
     "oxlint": "^1.28.0",
