@@ -1,5 +1,7 @@
 import * as vscode from 'vscode'
 import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
+import * as fs from 'node:fs'
 import path from 'node:path'
 
 interface ReviewIssue {
@@ -56,6 +58,9 @@ let currentReview: ReviewRun | null = null
 let sseAbortController: AbortController | undefined
 let sseRetryTimer: ReturnType<typeof setTimeout> | undefined
 let reviewWebviewProvider: ReviewWebviewProvider | undefined
+// 每个插件实例的唯一标识，激活时生成并写入 .git/ai-code-review-client-id
+// post-commit 脚本读取该文件，将 clientId 传给后端，后端只推送给对应客户端
+let clientId: string = randomUUID()
 
 const toSeverity = (
   severity: ReviewIssue['severity'],
@@ -135,6 +140,22 @@ const getRepoName = (): string => {
   }
 }
 
+// 将 clientId 写入 .git/ai-code-review-client-id，供 post-commit 脚本读取
+const writeClientId = (id: string) => {
+  const firstFolder = getFirstWorkspaceFolder()
+  const folder = firstFolder?.uri.fsPath
+  if (!folder) return
+  try {
+    const gitDir = path.join(folder, '.git')
+    if (fs.existsSync(gitDir)) {
+      fs.writeFileSync(path.join(gitDir, 'ai-code-review-client-id'), id, 'utf8')
+      output.appendLine(`[clientId] written to .git/ai-code-review-client-id: ${id}`)
+    }
+  } catch (error) {
+    output.appendLine(`[clientId] failed to write: ${String(error)}`)
+  }
+}
+
 const refreshDiagnostics = (issueList: ReviewIssue[]) => {
   diagnostics.clear()
 
@@ -189,11 +210,10 @@ async function connectSse() {
   sseAbortController = new AbortController()
 
   const apiUrl = getApiUrl()
-  const repo = getRepoName()
-  output.appendLine(`[sse] connecting ${apiUrl}/review/stream/${repo}`)
+  output.appendLine(`[sse] connecting ${apiUrl}/review/stream/${clientId}`)
 
   const response = await fetch(
-    `${apiUrl}/review/stream/${encodeURIComponent(repo)}`,
+    `${apiUrl}/review/stream/${encodeURIComponent(clientId)}`,
     { signal: sseAbortController.signal },
   )
   if (!response.ok || !response.body) {
@@ -463,6 +483,16 @@ class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 
 export function activate(context: vscode.ExtensionContext) {
   output.appendLine('[activate] extension activated')
+  // 从持久化存储恢复 clientId，保证重启后 clientId 不变，post-commit 脚本能匹配上
+  const storedClientId = context.globalState.get<string>('clientId')
+  if (storedClientId) {
+    clientId = storedClientId
+  } else {
+    void context.globalState.update('clientId', clientId)
+  }
+  writeClientId(clientId)
+  output.appendLine(`[activate] clientId=${clientId}`)
+
   reviewWebviewProvider = new ReviewWebviewProvider(context.extensionUri)
   context.subscriptions.push(diagnostics, output)
 

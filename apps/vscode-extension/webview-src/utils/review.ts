@@ -6,7 +6,7 @@ export function isPendingStatus(status: string): boolean {
 }
 
 function severityRank(severity: string): number {
-  return
+  return severityOrder[severity as IssueSeverity] ?? 99
 }
 
 function normalizeText(value: unknown): string {

@@ -11,12 +11,12 @@ const reviewClient = new MultiProviderReviewClient();
 
 app.get('/health', async () => ({ ok: true }));
 
-const sseClients = new Map<string, Set<(data: unknown) => void>>();
+// key: clientId，value: 该客户端的 SSE 推送函数
+// 每个插件实例连接时生成唯一 clientId，review/run 时指定 clientId，只推给触发者
+const sseClients = new Map<string, (data: unknown) => void>();
 
-const broadcast = (repo: string, data: unknown) => {
-  const targets = sseClients.get(repo);
-  if (!targets) return;
-  for (const send of targets) send(data);
+const sendToClient = (clientId: string, data: unknown) => {
+  sseClients.get(clientId)?.(data);
 };
 
 const toStatus = (hasIssues: boolean): ReviewStatus => {
@@ -37,6 +37,7 @@ app.post('/review/run', async (request, reply) => {
     pr: number;
     sha: string;
     diff: string;
+    clientId?: string;
     trigger?: 'manual' | 'post-commit' | 'ci';
     provider?: ReviewProvider;
     model?: string;
@@ -58,12 +59,12 @@ app.post('/review/run', async (request, reply) => {
   };
   store.saveReview(draft);
   store.saveReviewEvent(draft.id, '排队中');
-  broadcast(body.repo, { type: 'review.status', review: draft });
+  if (body.clientId) sendToClient(body.clientId, { type: 'review.status', review: draft });
 
   store.saveReviewEvent(draft.id, '审查中');
   const running: ReviewRun = { ...draft, status: '审查中', updatedAt: new Date().toISOString() };
   store.saveReview(running);
-  broadcast(body.repo, { type: 'review.status', review: running });
+  if (body.clientId) sendToClient(body.clientId, { type: 'review.status', review: running });
 
   try {
     const review = await runReview(
@@ -86,7 +87,7 @@ app.post('/review/run', async (request, reply) => {
           progress,
         };
         store.saveReview(progressReview);
-        broadcast(body.repo, {
+        if (body.clientId) sendToClient(body.clientId, {
           type: 'review.progress',
           progress,
           review: progressReview,
@@ -104,7 +105,7 @@ app.post('/review/run', async (request, reply) => {
     const finalReview: ReviewRun = { ...saved, status: toStatus(saved.issues.length > 0) };
     store.saveReview(finalReview);
     store.saveReviewEvent(finalReview.id, finalReview.status);
-    broadcast(body.repo, { type: 'review.completed', review: finalReview });
+    if (body.clientId) sendToClient(body.clientId, { type: 'review.completed', review: finalReview });
     return reply.send(finalReview);
   } catch (error) {
     const fallback: ReviewRun = {
@@ -135,7 +136,7 @@ app.post('/review/run', async (request, reply) => {
 
     store.saveReview(fallback);
     store.saveReviewEvent(fallback.id, '失败', String(error));
-    broadcast(body.repo, { type: 'review.completed', review: fallback });
+    if (body.clientId) sendToClient(body.clientId, { type: 'review.completed', review: fallback });
     request.log.error(error);
     return reply.code(200).send(fallback);
   }
@@ -159,8 +160,8 @@ app.get('/review/events/:repo', async (request, reply) => {
   return { review, events: store.listReviewEvents(review.id) };
 });
 
-app.get('/review/stream/:repo', async (request, reply) => {
-  const { repo } = request.params as { repo: string };
+app.get('/review/stream/:clientId', async (request, reply) => {
+  const { clientId } = request.params as { clientId: string };
   reply.raw.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   reply.raw.setHeader('Cache-Control', 'no-cache, no-transform');
   reply.raw.setHeader('Connection', 'keep-alive');
@@ -170,19 +171,11 @@ app.get('/review/stream/:repo', async (request, reply) => {
     reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
-  const bucket = sseClients.get(repo) ?? new Set<(data: unknown) => void>();
-  bucket.add(send);
-  sseClients.set(repo, bucket);
-
-  const latest = store.getLatestReviewByRepo(repo);
-  if (latest) send({ type: 'review.snapshot', review: latest });
-  send({ type: 'hello', repo });
+  sseClients.set(clientId, send);
+  send({ type: 'hello', clientId });
 
   request.raw.on('close', () => {
-    const current = sseClients.get(repo);
-    if (!current) return;
-    current.delete(send);
-    if (current.size === 0) sseClients.delete(repo);
+    sseClients.delete(clientId);
   });
 });
 

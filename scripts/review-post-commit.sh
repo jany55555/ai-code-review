@@ -11,6 +11,9 @@ set -u
   MODEL=${AI_CODE_REVIEW_MODEL:-claude-sonnet-4-6}
   API_KEY=${AI_CODE_REVIEW_API_KEY:-}
   BASE_URL=${AI_CODE_REVIEW_BASE_URL:-}
+  # 插件启动时写入 .git/ai-code-review-client-id，脚本读取后传给后端，实现按用户隔离推送
+  CLIENT_ID_FILE="$ROOT/.git/ai-code-review-client-id"
+  CLIENT_ID=$(cat "$CLIENT_ID_FILE" 2>/dev/null || echo "")
 
   DIFF=$(git show --format= --unified=0 "$SHA" 2>/dev/null) || exit 0
 
@@ -18,7 +21,7 @@ set -u
     exit 0
   fi
 
-  export REPO SHA DIFF PROVIDER MODEL API_KEY BASE_URL
+  export REPO SHA DIFF PROVIDER MODEL API_KEY BASE_URL CLIENT_ID
 
   python3 - <<'PY' | curl --silent --show-error --fail --max-time 8 \
     -X POST "$API_URL/review/run" \
@@ -36,6 +39,8 @@ payload = {
     "provider": os.environ["PROVIDER"],
     "model": os.environ["MODEL"],
 }
+if os.environ.get("CLIENT_ID"):
+    payload["clientId"] = os.environ["CLIENT_ID"]
 if os.environ.get("API_KEY"):
     payload["apiKey"] = os.environ["API_KEY"]
 if os.environ.get("BASE_URL"):
