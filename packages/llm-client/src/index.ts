@@ -7,19 +7,37 @@ import type {
   ReviewProvider,
 } from '@ai-code-review/contracts';
 
-const promptFor = (context: PullRequestContext): string => {
+// 所有 provider 共用的 system prompt，定义角色、输出格式和审查规则。
+// 放在 system role 而非 user message，模型对指令的遵循度更高，且支持 Anthropic prompt caching。
+const SYSTEM_PROMPT = [
+  'You are an expert code reviewer.',
+  'Your output must be raw JSON only — no markdown, no code fences, no explanation.',
+  'The JSON must have exactly two fields: "summary" (string) and "issues" (array).',
+  'Write summary/title/evidence/suggestion in Simplified Chinese.',
+  'Each issue object requires these fields:',
+  '  - id: unique string',
+  '  - filePath: file path string',
+  '  - line: the actual line number in the file AFTER the change (not the diff hunk offset)',
+  '  - severity: one of "info" | "warning" | "error"',
+  '  - title: short description in Chinese',
+  '  - evidence: exact code snippet with explanation of why it is a problem',
+  '  - suggestion: concrete fix suggestion in Chinese',
+  '  - confidence: number between 0 and 1',
+  '  - fixPatch: optional unified diff snippet that can be applied directly',
+  'Review rules:',
+  // 最关键的规则：只审查新增行，避免把已修复的旧代码当 bug 报出来
+  '  1. ONLY review lines starting with "+". Lines starting with "-" are already deleted — never report issues on them.',
+  '  2. Focus on correctness, null safety, security risks, and missing tests.',
+  '  3. Do not report a bug without direct evidence from the provided "+" lines.',
+  '  4. For structure/syntax claims, verify against the full file context in the diff before deciding.',
+  '  5. Keep evidence factual: quote the exact "+" line and explain why it is a problem.',
+  '  6. Set confidence by evidence strength. Only set high confidence when the issue is directly provable.',
+  '  7. Avoid guessing from partial diff patterns.',
+].join('\n');
+
+// 构造 user message，只包含仓库信息和 diff 数据，不混入指令
+const buildUserMessage = (context: PullRequestContext): string => {
   return [
-    'You are an expert code reviewer.',
-    'Return strict JSON only with fields summary and issues.',
-    'Write summary/title/evidence/suggestion in Simplified Chinese.',
-    'Each issue requires: id, filePath, line, severity(info|warning|error), title, evidence, suggestion, confidence(0-1), fixPatch(optional).',
-    'Focus on correctness, null safety, security risks, and missing tests.',
-    'Do not report a bug without direct evidence from the provided code.',
-    'For structure and syntax claims (missing closing tag, import not found, duplicate key, type error), verify against complete file context before deciding.',
-    'If evidence is insufficient, do not create an issue.',
-    'Keep evidence factual: include exact code snippet and why it proves the issue.',
-    'Set confidence by evidence strength: high confidence only when directly provable from code; lower confidence for uncertain findings.',
-    'Avoid guessing from partial diff patterns.',
     `Repository: ${context.repository}`,
     `Pull Request: ${context.pullRequestNumber}`,
     'Diff:',
@@ -27,6 +45,7 @@ const promptFor = (context: PullRequestContext): string => {
   ].join('\n\n');
 };
 
+// 兜底解析：处理 OpenAI/Gemini 返回的文本，防止偶发的 markdown 包裹导致解析失败
 const extractJson = (text: string): string => {
   // 提取 markdown 代码块中的 JSON（```json ... ``` 或 ``` ... ```）
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -102,29 +121,73 @@ export class MultiProviderReviewClient {
   private async reviewWithClaude(
     context: PullRequestContext,
   ): Promise<{ summary: string; issues: ReviewIssue[] }> {
+    // 使用 tool_use + tool_choice 强制结构化输出，模型必须调用 report_review 工具
+    // 输出直接是 JSON 对象，完全绕过文本解析，比 prompt 要求返回 JSON 更可靠
     const response = await this.createAnthropicClient(context).messages.create({
       model: context.model ?? 'claude-sonnet-4-6',
       max_tokens: 16000,
-      messages: [{ role: 'user', content: promptFor(context) }],
+      system: SYSTEM_PROMPT,
+      tools: [
+        {
+          name: 'report_review',
+          description: 'Report the code review result as structured JSON.',
+          input_schema: {
+            type: 'object' as const,
+            properties: {
+              summary: { type: 'string' },
+              issues: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    filePath: { type: 'string' },
+                    line: { type: 'number' },
+                    severity: { type: 'string', enum: ['info', 'warning', 'error'] },
+                    title: { type: 'string' },
+                    evidence: { type: 'string' },
+                    suggestion: { type: 'string' },
+                    confidence: { type: 'number' },
+                    fixPatch: { type: 'string' },
+                  },
+                  required: ['id', 'filePath', 'line', 'severity', 'title', 'evidence', 'suggestion', 'confidence'],
+                },
+              },
+            },
+            required: ['summary', 'issues'],
+          },
+        },
+      ],
+      tool_choice: { type: 'tool', name: 'report_review' },
+      messages: [{ role: 'user', content: buildUserMessage(context) }],
     });
 
-    const text = response.content.find((block: { type: string }) => block.type === 'text');
-    if (!text || text.type !== 'text') {
+    const toolUse = response.content.find((block: { type: string }) => block.type === 'tool_use');
+    if (!toolUse || toolUse.type !== 'tool_use') {
       return { summary: 'No summary generated.', issues: [] };
     }
 
-    return parseReviewOutput(text.text);
+    const input = toolUse.input as { summary?: string; issues?: ReviewIssue[] };
+    return {
+      summary: input.summary ?? 'No summary generated.',
+      issues: Array.isArray(input.issues) ? input.issues : [],
+    };
   }
 
   private async reviewWithOpenAI(
     context: PullRequestContext,
   ): Promise<{ summary: string; issues: ReviewIssue[] }> {
-    const response = await this.createOpenAIClient(context).responses.create({
+    // response_format: json_object 保证输出是合法 JSON，避免 markdown 包裹
+    const response = await this.createOpenAIClient(context).chat.completions.create({
       model: context.model ?? 'gpt-4o',
-      input: promptFor(context),
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: buildUserMessage(context) },
+      ],
     });
 
-    const text = response.output_text;
+    const text = response.choices[0]?.message?.content;
     if (!text) {
       return { summary: 'No summary generated.', issues: [] };
     }
@@ -135,9 +198,12 @@ export class MultiProviderReviewClient {
   private async reviewWithGemini(
     context: PullRequestContext,
   ): Promise<{ summary: string; issues: ReviewIssue[] }> {
+    // Gemini 不支持独立 system role，将 system prompt 拼在 contents 最前面
+    // responseMimeType 强制返回 JSON 格式
     const response = await this.createGeminiClient(context).models.generateContent({
       model: context.model ?? 'gemini-1.5-pro',
-      contents: promptFor(context),
+      config: { responseMimeType: 'application/json' },
+      contents: `${SYSTEM_PROMPT}\n\n${buildUserMessage(context)}`,
     });
 
     const text = response.text;
