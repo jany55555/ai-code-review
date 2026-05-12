@@ -5,6 +5,12 @@
       "label": "build",
       "type": "shell",
       "command": "pnpm build",
+      "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
+      },
       "group": "build",
       "problemMatcher": []
     }
