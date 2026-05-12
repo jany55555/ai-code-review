@@ -27,9 +27,19 @@ const promptFor = (context: PullRequestContext): string => {
   ].join('\n\n');
 };
 
+const extractJson = (text: string): string => {
+  // 提取 markdown 代码块中的 JSON（```json ... ``` 或 ``` ... ```）
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) return fenceMatch[1].trim();
+  // 提取裸 JSON 对象
+  const objMatch = text.match(/\{[\s\S]*\}/);
+  if (objMatch) return objMatch[0];
+  return text.trim();
+};
+
 const parseReviewOutput = (text: string): { summary: string; issues: ReviewIssue[] } => {
   try {
-    const parsed = JSON.parse(text) as { summary?: string; issues?: ReviewIssue[] };
+    const parsed = JSON.parse(extractJson(text)) as { summary?: string; issues?: ReviewIssue[] };
     return {
       summary: parsed.summary ?? 'No summary generated.',
       issues: Array.isArray(parsed.issues) ? parsed.issues : [],

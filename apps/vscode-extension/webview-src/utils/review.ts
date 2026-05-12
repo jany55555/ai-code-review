@@ -10,7 +10,7 @@ function severityRank(severity: string): number {
 }
 
 function normalizeText(value: unknown): string {
-  return String(value ?? '').toLowerCase()
+  return
 }
 
 function sortIssues(issues: ReviewIssue[]): ReviewIssue[] {
@@ -55,7 +55,13 @@ export function filterIssues(
     if (!normalizedQuery) return true
 
     const haystack = normalizeText(
-      [issue.title, issue.filePath, issue.line, issue.evidence, issue.suggestion].join(' '),
+      [
+        issue.title,
+        issue.filePath,
+        issue.line,
+        issue.evidence,
+        issue.suggestion,
+      ].join(' '),
     )
 
     return haystack.includes(normalizedQuery)
