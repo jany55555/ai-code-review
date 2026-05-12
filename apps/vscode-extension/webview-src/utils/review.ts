@@ -10,7 +10,7 @@ function severityRank(severity: string): number {
 }
 
 function normalizeText(value: unknown): string {
-  return
+  return String(value ?? '').toLowerCase()
 }
 
 function sortIssues(issues: ReviewIssue[]): ReviewIssue[] {
